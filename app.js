@@ -434,6 +434,47 @@ function translateIngredient(name) {
   return { name: fr || name, originalName: name, _translated: !!fr };
 }
 
+/* ── Conversion tasses → g ou ml selon l'ingrédient ─────────── */
+// Table : 1 tasse (cup) par catégorie
+const CUP_RULES = [
+  {
+    // Liquides : 250 ml / tasse
+    test: name => /water|milk|cream|broth|stock|juice|wine|vinegar|oil|sauce|buttermilk|yogurt|syrup|honey|molasses|beer|cider|coconut milk|lemon|lime|orange juice|tomato|brine/.test(name),
+    factor: 250, unit: 'ml', display: v => v >= 1000 ? (Math.round(v / 100) / 10) + ' l' : v + ' ml'
+  },
+  {
+    // Farine : 125 g / tasse
+    test: name => /flour|farine/.test(name),
+    factor: 125, unit: 'g', display: v => v + ' g'
+  },
+  {
+    // Sucre blanc/semoule : 200 g / tasse
+    test: name => /\bsugar\b/.test(name) && !/brown|powdered|confectioners|icing/.test(name),
+    factor: 200, unit: 'g', display: v => v + ' g'
+  },
+  {
+    // Sucre roux / glace : 220 g / tasse (approximation)
+    test: name => /brown sugar|powdered sugar|confectioners|icing sugar/.test(name),
+    factor: 220, unit: 'g', display: v => v + ' g'
+  },
+  {
+    // Beurre : 225 g / tasse
+    test: name => /\bbutter\b/.test(name),
+    factor: 225, unit: 'g', display: v => v + ' g'
+  }
+];
+
+function convertCupsToMetric(ingredientName, amount) {
+  if (!amount || amount === 0) return null;
+  const name = (ingredientName || '').toLowerCase();
+  for (const rule of CUP_RULES) {
+    if (rule.test(name)) {
+      return rule.display(Math.round(amount * rule.factor));
+    }
+  }
+  return null; // inconnu → garder "tasse"
+}
+
 /* ── Formatage d'un nombre pour l'affichage FR ──────────────── */
 function formatAmount(n) {
   if (!n || n === 0) return '';
@@ -517,14 +558,27 @@ function parseSteps(stepsArr) {
 
 function processSpoonMeal(raw) {
   const ingredients = (raw.extendedIngredients || []).map(ing => {
-    const amount = ing.amount ? formatAmount(ing.amount) : '';
-    let unit = ing.unit || '';
-    if (/^lbs?$|^pounds?$/i.test(unit.trim())) {
-      const grams = Math.round((ing.amount || 0) * 450);
-      return { name: ing.nameClean || ing.name, originalName: ing.nameClean || ing.name, _translated: false, measure: grams + 'g' };
+    const amount = ing.amount || 0;
+    const unit   = (ing.unit || '').trim();
+    const ingName = ing.nameClean || ing.name || '';
+
+    // Conversion lb → g
+    if (/^lbs?$|^pounds?$/i.test(unit)) {
+      const grams = Math.round(amount * 450);
+      return { name: ingName, originalName: ingName, _translated: false, measure: grams + ' g' };
     }
-    const measureRaw = [amount, unit].filter(Boolean).join(' ');
-    const { name, originalName, _translated } = translateIngredient(ing.nameClean || ing.name);
+
+    // Conversion cup → g ou ml selon l'ingrédient
+    if (/^cups?$/i.test(unit)) {
+      const converted = convertCupsToMetric(ingName, amount);
+      if (converted) {
+        const { name, originalName, _translated } = translateIngredient(ingName);
+        return { name, originalName, _translated, measure: converted };
+      }
+    }
+
+    const measureRaw = [amount ? formatAmount(amount) : '', unit].filter(Boolean).join(' ');
+    const { name, originalName, _translated } = translateIngredient(ingName);
     return { name, originalName, _translated, measure: translateMeasure(measureRaw) };
   });
 
@@ -735,6 +789,11 @@ function renderMealCards(meals) {
   }
   grid.innerHTML = meals.map(m => {
     const totalTime = (m.prepTime || 0) + (m.cookTime || 0);
+    const timeHtml = totalTime ? `
+      <div class="meal-time-row">
+        <span class="meal-total-time">${totalTime} min</span>
+        ${(m.prepTime || m.cookTime) ? `<span class="meal-time-detail">⏱ ${m.prepTime} min &nbsp;🔥 ${m.cookTime} min</span>` : ''}
+      </div>` : '';
     return `
     <div class="meal-card" onclick="openMeal('${m.id}')">
       <img class="meal-card-img" src="${escHtml(m.image)}" alt="${escHtml(m.nameFr || m.name)}"
@@ -742,7 +801,7 @@ function renderMealCards(meals) {
            loading="lazy" />
       <div class="meal-card-body">
         <div class="meal-card-name">${escHtml(m.nameFr || m.name)}</div>
-        ${totalTime ? `<div class="meal-total-time">${totalTime} min</div>` : ''}
+        ${timeHtml}
       </div>
     </div>`;
   }).join('');
@@ -829,7 +888,7 @@ async function showRecipe() {
 function openDetails() {
   if (!activeMeal) return;
   const name  = activeMeal.nameFr || activeMeal.name;
-  const query = encodeURIComponent(name + ' recette détaillée');
+  const query = encodeURIComponent(name + ' recette');
   window.open(`https://www.google.com/search?q=${query}&lr=lang_fr`, '_blank');
   markPreparedSilent();
 }

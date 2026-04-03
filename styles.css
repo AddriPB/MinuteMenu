@@ -303,9 +303,9 @@ body {
 .daily-bar-text { flex: 1; line-height: 1.4; }
 
 .btn-refresh {
-  background: none;
-  border: none;
-  padding: 7px;
+  background: rgba(255,255,255,.28);
+  border: 1.5px solid rgba(255,255,255,.6);
+  padding: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -313,12 +313,13 @@ body {
   border-radius: 50%;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
-  transition: transform .3s ease;
+  transition: transform .3s ease, background .15s;
 }
-.btn-refresh:active { transform: rotate(180deg); }
+.btn-refresh:active { transform: rotate(180deg); background: rgba(255,255,255,.45); }
 .btn-refresh svg {
   width: 22px; height: 22px;
-  color: var(--mint-light);
+  color: #fff;
+  stroke-width: 2.8;
 }
 .btn-refresh.spinning svg {
   animation: spin .65s linear infinite;
@@ -354,11 +355,22 @@ body {
   line-height: 1.4;
 }
 
+.meal-time-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .meal-total-time {
   font-size: 13px;
   font-weight: 700;
   color: var(--orange);
   letter-spacing: .2px;
+}
+.meal-time-detail {
+  font-size: 12px;
+  color: var(--gray);
+  font-weight: 500;
 }
 
 /* ── Skeleton ── */
