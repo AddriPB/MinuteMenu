@@ -782,6 +782,37 @@ async function translateUnknownIngredients(ingredients) {
   } catch (_) {}
 }
 
+/**
+ * Traduit entièrement les mesures via dictionnaire + Google Translate.
+ * Les mesures traduites sont mises en cache dans ing.measureFr.
+ */
+async function translateAllMeasures(ingredients) {
+  const toTranslate = ingredients.filter(i => i.measureFr === undefined);
+  if (toTranslate.length === 0) return;
+  try {
+    // Passe 1 : dictionnaire (synchrone)
+    toTranslate.forEach(i => {
+      i._measureDict = translateMeasure(i.measure || '');
+    });
+    // Passe 2 : traduction automatique en lot pour les mesures restantes
+    // On envoie toutes les mesures post-dictionnaire à Google Translate
+    const batch = toTranslate.map(i => i._measureDict).join('\n||||\n');
+    const translated = await translateText(batch);
+    const lines = translated.split(/\n?\|\|\|\|\n?/);
+    toTranslate.forEach((ing, idx) => {
+      const tr = lines[idx] ? lines[idx].trim() : ing._measureDict;
+      // On garde la version dictionnaire si Google Translate "casse" les chiffres
+      ing.measureFr = tr || ing._measureDict;
+      delete ing._measureDict;
+    });
+  } catch (_) {
+    // Fallback : dictionnaire seul
+    toTranslate.forEach(i => {
+      i.measureFr = i.measureFr ?? translateMeasure(i.measure || '');
+    });
+  }
+}
+
 /* Ajoute un saut de ligne après chaque phrase */
 function addSentenceBreaks(text) {
   return text.replace(/([.!?])\s+/g, '$1<br>').trim();
@@ -1516,12 +1547,20 @@ async function openMeal(mealId) {
   // Traduction des ingrédients non encore traduits
   await translateUnknownIngredients(activeMeal.ingredients);
 
-  document.getElementById('ing-list').innerHTML = activeMeal.ingredients.map(ing => `
-    <li class="ing-item">
-      <div class="ing-dot"></div>
-      <span class="ing-name">${escHtml(ing.name)}</span>
-      <span class="ing-measure">${escHtml(translateMeasure(ing.measure || ''))}</span>
-    </li>`).join('');
+  // Affichage immédiat avec le dictionnaire (synchrone)
+  const renderList = () => {
+    document.getElementById('ing-list').innerHTML = activeMeal.ingredients.map(ing => `
+      <li class="ing-item">
+        <div class="ing-dot"></div>
+        <span class="ing-name">${escHtml(ing.name)}</span>
+        <span class="ing-measure">${escHtml(ing.measureFr !== undefined ? ing.measureFr : translateMeasure(ing.measure || ''))}</span>
+      </li>`).join('');
+  };
+  renderList();
+
+  // Traduction complète des mesures via Google Translate, puis ré-affichage
+  await translateAllMeasures(activeMeal.ingredients);
+  renderList();
 
   showScreen('ingredients');
 }
