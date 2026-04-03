@@ -1205,23 +1205,77 @@ function translateArea(area) {
   return AREAS_FR[area] || area;
 }
 
-/* ── Temps par catégorie ────────────────────────────────────── */
-const TIMES = {
-  Beef:          { prep: 20, cook: 45 },
-  Chicken:       { prep: 15, cook: 35 },
-  Lamb:          { prep: 20, cook: 55 },
-  Pork:          { prep: 15, cook: 35 },
-  Seafood:       { prep: 15, cook: 20 },
-  Vegetarian:    { prep: 20, cook: 25 },
-  Vegan:         { prep: 20, cook: 25 },
-  Pasta:         { prep: 10, cook: 20 },
-  Dessert:       { prep: 25, cook: 35 },
-  Breakfast:     { prep: 10, cook: 15 },
-  Goat:          { prep: 20, cook: 60 },
-  Side:          { prep: 10, cook: 20 },
-  Starter:       { prep: 15, cook: 10 },
-  Miscellaneous: { prep: 20, cook: 30 }
+/* ── Traduction types de plats et cuisines (Spoonacular) ───── */
+const DISH_TYPES_FR = {
+  'main course':    'plat principal',
+  'main dish':      'plat principal',
+  'side dish':      'accompagnement',
+  'dessert':        'dessert',
+  'appetizer':      'entrée',
+  'salad':          'salade',
+  'bread':          'pain',
+  'breakfast':      'petit-déjeuner',
+  'soup':           'soupe',
+  'beverage':       'boisson',
+  'sauce':          'sauce',
+  'marinade':       'marinade',
+  'fingerfood':     'amuse-bouche',
+  'snack':          'en-cas',
+  'drink':          'boisson',
+  'starter':        'entrée',
+  'antipasti':      'antipasti',
+  'antipasto':      'antipasto',
+  'hor d\'oeuvre':  'hors-d\'œuvre',
+  'lunch':          'déjeuner',
+  'dinner':         'dîner'
 };
+
+const CUISINES_SPOON_FR = {
+  'french':          'française',
+  'italian':         'italienne',
+  'american':        'américaine',
+  'mexican':         'mexicaine',
+  'asian':           'asiatique',
+  'chinese':         'chinoise',
+  'japanese':        'japonaise',
+  'thai':            'thaïlandaise',
+  'indian':          'indienne',
+  'mediterranean':   'méditerranéenne',
+  'spanish':         'espagnole',
+  'greek':           'grecque',
+  'middle eastern':  'du Moyen-Orient',
+  'british':         'britannique',
+  'german':          'allemande',
+  'eastern european':'d\'Europe de l\'Est',
+  'nordic':          'nordique',
+  'latin american':  'latino-américaine',
+  'caribbean':       'caribéenne',
+  'african':         'africaine',
+  'korean':          'coréenne',
+  'vietnamese':      'vietnamienne',
+  'jewish':          'juive',
+  'cajun':           'cajun',
+  'creole':          'créole',
+  'irish':           'irlandaise',
+  'portuguese':      'portugaise',
+  'scandinavian':    'scandinave'
+};
+
+function translateDishType(t) {
+  return DISH_TYPES_FR[t.toLowerCase()] || t;
+}
+function translateCuisineSpoon(c) {
+  return CUISINES_SPOON_FR[c.toLowerCase()] || c;
+}
+
+/* ── Formatage d'un nombre pour l'affichage FR ──────────────── */
+function formatAmount(n) {
+  if (!n || n === 0) return '';
+  const rounded = Math.round(n * 100) / 100;
+  // Si entier, pas de décimale
+  if (rounded === Math.floor(rounded)) return String(rounded);
+  return String(rounded).replace('.', ',');
+}
 
 /* ── État ────────────────────────────────────────────────────── */
 let currentUser = null;
@@ -1284,74 +1338,87 @@ function goHome() {
   showScreen('home');
 }
 
-/* ── Données repas ──────────────────────────────────────────── */
-function getTimes(category) {
-  return TIMES[category] || { prep: 20, cook: 30 };
-}
+/* ── API Spoonacular ─────────────────────────────────────────── */
+// Clé API gratuite — obtenez la vôtre sur https://spoonacular.com/food-api
+const SPOON_KEY = '45d93ceec89da44a6522930e0fc9ee8b78e54c88';
+const SPOON     = 'https://api.spoonacular.com';
 
-function parseIngredients(raw) {
-  const list = [];
-  for (let i = 1; i <= 20; i++) {
-    const name    = (raw['strIngredient' + i] || '').trim();
-    const measure = (raw['strMeasure'    + i] || '').trim();
-    if (name) {
-      const t = translateIngredient(name);
-      list.push({ name: t.name, originalName: t.originalName, _translated: t._translated, measure: translateMeasure(measure) });
+function parseSteps(stepsArr) {
+  if (!stepsArr || !stepsArr.length) return [];
+  // Spoonacular retourne un tableau d'étapes structurées
+  const steps = [];
+  for (const section of stepsArr) {
+    for (const step of (section.steps || [])) {
+      if (step.step && step.step.trim().length > 4) steps.push(step.step.trim());
     }
   }
-  return list;
+  return steps;
 }
 
-function parseSteps(text) {
-  if (!text || !text.trim()) return [];
-  text = text.trim();
-  const byNumber = text.split(/\n\s*\d+[\.\)]\s+/);
-  if (byNumber.length > 2) {
-    return byNumber.map(s => s.trim().replace(/\n/g, ' ')).filter(s => s.length > 8);
-  }
-  const byParagraph = text.split(/\n{2,}/).map(s => s.trim().replace(/\n/g, ' ')).filter(s => s.length > 8);
-  if (byParagraph.length > 1) return byParagraph;
-  return text.split(/\n/).map(s => s.trim()).filter(s => s.length > 8);
-}
+function processSpoonMeal(raw) {
+  const ingredients = (raw.extendedIngredients || []).map(ing => {
+    const amount = ing.amount ? formatAmount(ing.amount) : '';
+    let unit = ing.unit || '';
+    // Conversion lb → g immédiate
+    if (/^lbs?$|^pounds?$/i.test(unit.trim())) {
+      const grams = Math.round((ing.amount || 0) * 450);
+      return { name: ing.nameClean || ing.name, originalName: ing.nameClean || ing.name, _translated: false, measure: grams + 'g' };
+    }
+    const measureRaw = [amount, unit].filter(Boolean).join(' ');
+    return {
+      name:         ing.nameClean || ing.name,
+      originalName: ing.nameClean || ing.name,
+      _translated:  false,
+      measure:      translateMeasure(measureRaw)
+    };
+  });
 
-function processMeal(raw) {
-  const t = getTimes(raw.strCategory);
+  const dishType = (raw.dishTypes || [])[0] || '';
+  const cuisine  = (raw.cuisines  || [])[0] || '';
+
   return {
-    id:             raw.idMeal,
-    name:           raw.strMeal,       // sera traduit à l'affichage
-    nameFr:         null,              // cache de traduction
-    image:          raw.strMealThumb,
-    category:       raw.strCategory || '',
-    area:           raw.strArea     || '',
-    prepTime:       t.prep,
-    cookTime:       t.cook,
-    ingredients:    parseIngredients(raw),
-    instructions:   raw.strInstructions || '',
-    instructionsFr: null               // cache de traduction
+    id:           String(raw.id),
+    name:         raw.title,
+    nameFr:       raw.title,           // Spoonacular FR → déjà en français
+    image:        raw.image || '',
+    category:     dishType ? translateDishType(dishType) : '',
+    area:         cuisine  ? translateCuisineSpoon(cuisine) : '',
+    prepTime:     raw.preparationMinutes > 0 ? raw.preparationMinutes : (raw.readyInMinutes ? Math.round(raw.readyInMinutes * 0.35) : 20),
+    cookTime:     raw.cookingMinutes    > 0 ? raw.cookingMinutes    : (raw.readyInMinutes ? Math.round(raw.readyInMinutes * 0.65) : 30),
+    ingredients,
+    instructions:   '',
+    instructionsFr: '',
+    analyzedInstructions: raw.analyzedInstructions || []
   };
 }
 
-/* ── API TheMealDB (gratuite, sans clé) ─────────────────────── */
-const MEALDB = 'https://www.themealdb.com/api/json/v1/1/';
-
-async function fetchRandomRaw() {
-  const res  = await fetch(MEALDB + 'random.php');
+async function fetchSpoonRandom(excludeIds = []) {
+  const url = `${SPOON}/recipes/random?number=6&language=fr&apiKey=${SPOON_KEY}`;
+  const res  = await fetch(url);
+  if (!res.ok) throw new Error('Spoonacular HTTP ' + res.status);
   const data = await res.json();
-  return data.meals[0];
+  return (data.recipes || []).filter(r => !excludeIds.includes(String(r.id)));
 }
 
 async function fetchUniqueMeals(count, excludeIds = []) {
   const result  = [];
   const usedIds = new Set(excludeIds.map(String));
-  const maxTry  = count * 8;
-  for (let i = 0; i < maxTry && result.length < count; i++) {
+  const maxTry  = 5;
+
+  for (let attempt = 0; attempt < maxTry && result.length < count; attempt++) {
     try {
-      const raw = await fetchRandomRaw();
-      if (!usedIds.has(raw.idMeal)) {
-        usedIds.add(raw.idMeal);
-        result.push(processMeal(raw));
+      const batch = await fetchSpoonRandom(Array.from(usedIds));
+      for (const raw of batch) {
+        if (result.length >= count) break;
+        if (!usedIds.has(String(raw.id))) {
+          usedIds.add(String(raw.id));
+          result.push(processSpoonMeal(raw));
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      console.error('fetchUniqueMeals error:', e);
+      break;
+    }
   }
   return result;
 }
@@ -1431,9 +1498,7 @@ function handleLogout() {
 
 /* ── Écran d'accueil ────────────────────────────────────────── */
 async function translateMealNames(meals) {
-  await Promise.all(meals.map(async m => {
-    if (!m.nameFr) m.nameFr = await translateText(m.name);
-  }));
+  // Spoonacular retourne déjà les titres en français — rien à faire
 }
 
 async function initHome() {
@@ -1524,30 +1589,20 @@ async function openMeal(mealId) {
   activeMeal = dailyMeals.find(m => m.id === mealId);
   if (!activeMeal) return;
 
-  // Affichage immédiat avec ce qu'on a
   document.getElementById('ing-img').src = activeMeal.image;
   document.getElementById('ing-img').alt = activeMeal.nameFr || activeMeal.name;
+  document.getElementById('ing-title').textContent = activeMeal.nameFr || activeMeal.name;
 
-  const catFr  = translateCategory(activeMeal.category);
-  const areaFr = translateArea(activeMeal.area);
-  const parts  = [];
+  const parts = [];
   if (activeMeal.prepTime) parts.push(`⏱️ ${activeMeal.prepTime} min prép.`);
   if (activeMeal.cookTime) parts.push(`🔥 ${activeMeal.cookTime} min cuisson`);
-  if (catFr)  parts.push(catFr);
-  if (areaFr) parts.push(`Cuisine ${areaFr}`);
+  if (activeMeal.category) parts.push(activeMeal.category);
+  if (activeMeal.area)     parts.push(`Cuisine ${activeMeal.area}`);
   document.getElementById('ing-sub').textContent = parts.join('  ·  ');
 
-  // Traduction du nom si pas encore fait
-  if (!activeMeal.nameFr) {
-    document.getElementById('ing-title').textContent = activeMeal.name;
-    activeMeal.nameFr = await translateText(activeMeal.name);
-  }
-  document.getElementById('ing-title').textContent = activeMeal.nameFr;
-
-  // Traduction des ingrédients non encore traduits
+  // Traduction des noms d'ingrédients via Google Translate pour les inconnus
   await translateUnknownIngredients(activeMeal.ingredients);
 
-  // Affichage immédiat avec le dictionnaire (synchrone)
   const renderList = () => {
     document.getElementById('ing-list').innerHTML = activeMeal.ingredients.map(ing => `
       <li class="ing-item">
@@ -1558,7 +1613,7 @@ async function openMeal(mealId) {
   };
   renderList();
 
-  // Traduction complète des mesures via Google Translate, puis ré-affichage
+  // Traduction complète des mesures (dictionnaire + Google Translate)
   await translateAllMeasures(activeMeal.ingredients);
   renderList();
 
@@ -1583,24 +1638,20 @@ async function showRecipe() {
 
   showScreen('recipe');
 
-  // Traduction des instructions (peut prendre un peu de temps)
   const stepsEl = document.getElementById('rec-steps');
-  stepsEl.innerHTML = '<p style="color:var(--gray);font-style:italic;font-size:13.5px;">Traduction en cours…</p>';
 
-  if (!activeMeal.instructionsFr && activeMeal.instructions) {
-    activeMeal.instructionsFr = await translateText(activeMeal.instructions);
+  // Spoonacular fournit les étapes structurées (analyzedInstructions)
+  const steps = parseSteps(activeMeal.analyzedInstructions);
+
+  if (steps.length) {
+    stepsEl.innerHTML = steps.map((s, i) => `
+      <div class="step-item">
+        <div class="step-num">${i + 1}</div>
+        <div class="step-text">${addSentenceBreaks(escHtml(s))}</div>
+      </div>`).join('');
+  } else {
+    stepsEl.innerHTML = '<p style="color:var(--gray);font-style:italic;font-size:13.5px;">Instructions non disponibles pour ce plat.</p>';
   }
-
-  const srcText = activeMeal.instructionsFr || activeMeal.instructions;
-  const steps   = parseSteps(srcText);
-
-  stepsEl.innerHTML = steps.length
-    ? steps.map((s, i) => `
-        <div class="step-item">
-          <div class="step-num">${i + 1}</div>
-          <div class="step-text">${addSentenceBreaks(escHtml(s))}</div>
-        </div>`).join('')
-    : '<p style="color:var(--gray);font-style:italic;font-size:13.5px;">Instructions non disponibles pour ce plat.</p>';
 }
 
 /* ── Marquer comme préparé ──────────────────────────────────── */
