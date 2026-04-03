@@ -1392,22 +1392,28 @@ function processSpoonMeal(raw) {
   };
 }
 
-async function fetchSpoonRandom(excludeIds = []) {
-  const url = `${SPOON}/recipes/random?number=6&language=fr&apiKey=${SPOON_KEY}`;
+async function fetchSpoonRandom() {
+  const url = `${SPOON}/recipes/random?number=6&includeNutrition=false&apiKey=${SPOON_KEY}`;
   const res  = await fetch(url);
-  if (!res.ok) throw new Error('Spoonacular HTTP ' + res.status);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Spoonacular ${res.status} — ${txt.slice(0, 120)}`);
+  }
   const data = await res.json();
-  return (data.recipes || []).filter(r => !excludeIds.includes(String(r.id)));
+  if (!Array.isArray(data.recipes)) {
+    throw new Error('Réponse inattendue : ' + JSON.stringify(data).slice(0, 120));
+  }
+  return data.recipes;
 }
 
 async function fetchUniqueMeals(count, excludeIds = []) {
   const result  = [];
   const usedIds = new Set(excludeIds.map(String));
-  const maxTry  = 5;
+  const maxTry  = 6;
 
   for (let attempt = 0; attempt < maxTry && result.length < count; attempt++) {
     try {
-      const batch = await fetchSpoonRandom(Array.from(usedIds));
+      const batch = await fetchSpoonRandom();
       for (const raw of batch) {
         if (result.length >= count) break;
         if (!usedIds.has(String(raw.id))) {
@@ -1416,7 +1422,8 @@ async function fetchUniqueMeals(count, excludeIds = []) {
         }
       }
     } catch (e) {
-      console.error('fetchUniqueMeals error:', e);
+      console.error('fetchUniqueMeals erreur:', e);
+      showToast('Erreur API : ' + e.message.slice(0, 80));
       break;
     }
   }
