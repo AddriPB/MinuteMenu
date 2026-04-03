@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>MinuteMenu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p style="color:var(--gray);font-size:14px;">Chargement…</p>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CONNEXION
+══════════════════════════════════════════════════════════════ -->
+<div id="screen-login" class="screen active">
+
+  <div class="login-hero">
+    <div class="login-pot-wrap">
+      <svg width="54" height="54" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 29 C29 22 33 16 31 10" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M50 26 C47 19 51 13 49 7"  stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M68 29 C65 22 69 16 67 10" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+        <rect x="43" y="32" width="14" height="5" rx="2.5" fill="white"/>
+        <path d="M15 46 C15 37 29 33 50 33 C71 33 85 37 85 46 Z" fill="white"/>
+        <path d="M15 46 L20 82 C20 87 31 91 50 91 C69 91 80 87 80 82 L85 46 Z" fill="white"/>
+        <path d="M15 54 C8 54 5 59 5 64 C5 69 8 72 15 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+        <path d="M85 54 C92 54 95 59 95 64 C95 69 92 72 85 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+      </svg>
+    </div>
+    <div class="login-title"><span class="m1">Minute</span><span class="m2">Menu</span></div>
+    <p class="login-tagline">Vos repas du jour, en un instant</p>
+  </div>
+
+  <div class="login-card">
+    <h2>Connexion</h2>
+    <p class="login-hint">Entrez votre code personnel pour accéder à votre espace.</p>
+    <input id="code-input" type="text" placeholder="CODE" maxlength="12" autocomplete="off" spellcheck="false" autocapitalize="characters" inputmode="text" />
+    <button class="btn-primary" onclick="handleLogin()">Accéder à mon espace →</button>
+    <div id="login-error"></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     ACCUEIL
+══════════════════════════════════════════════════════════════ -->
+<div id="screen-home" class="screen">
+
+  <header class="app-header">
+    <button class="logo-btn" onclick="goHome()">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 29 C29 22 33 16 31 10" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <path d="M50 26 C47 19 51 13 49 7"  stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <path d="M68 29 C65 22 69 16 67 10" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <rect x="43" y="32" width="14" height="5" rx="2.5" fill="white"/>
+        <path d="M15 46 C15 37 29 33 50 33 C71 33 85 37 85 46 Z" fill="white"/>
+        <path d="M15 46 L20 82 C20 87 31 91 50 91 C69 91 80 87 80 82 L85 46 Z" fill="white"/>
+        <path d="M15 54 C8 54 5 59 5 64 C5 69 8 72 15 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+        <path d="M85 54 C92 54 95 59 95 64 C95 69 92 72 85 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+      </svg>
+      <span class="logo-wordmark"><span class="m1">Minute</span><span class="m2">Menu</span></span>
+    </button>
+    <div class="header-actions">
+      <button class="btn-logout" onclick="handleLogout()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Déconnexion
+      </button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <div class="home-intro">
+      <h1>Que cuisiner aujourd'hui ?</h1>
+    </div>
+
+    <div class="daily-bar">
+      <span class="daily-bar-text">3 idées du jour sélectionnées pour vous</span>
+      <button class="btn-refresh" id="btn-refresh" onclick="refreshMeals()" title="Actualiser">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="meals-grid" id="meals-grid">
+      <div class="skel-card"><div class="skel" style="height:185px;border-radius:0;"></div><div style="padding:14px"><div class="skel" style="height:17px;width:65%;margin-bottom:10px;"></div><div class="skel" style="height:12px;width:30%;"></div></div></div>
+      <div class="skel-card"><div class="skel" style="height:185px;border-radius:0;"></div><div style="padding:14px"><div class="skel" style="height:17px;width:72%;margin-bottom:10px;"></div><div class="skel" style="height:12px;width:30%;"></div></div></div>
+      <div class="skel-card"><div class="skel" style="height:185px;border-radius:0;"></div><div style="padding:14px"><div class="skel" style="height:17px;width:58%;margin-bottom:10px;"></div><div class="skel" style="height:12px;width:30%;"></div></div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     INGRÉDIENTS
+══════════════════════════════════════════════════════════════ -->
+<div id="screen-ingredients" class="screen">
+
+  <header class="app-header">
+    <button class="logo-btn" onclick="goHome()">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 29 C29 22 33 16 31 10" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <path d="M50 26 C47 19 51 13 49 7"  stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <path d="M68 29 C65 22 69 16 67 10" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <rect x="43" y="32" width="14" height="5" rx="2.5" fill="white"/>
+        <path d="M15 46 C15 37 29 33 50 33 C71 33 85 37 85 46 Z" fill="white"/>
+        <path d="M15 46 L20 82 C20 87 31 91 50 91 C69 91 80 87 80 82 L85 46 Z" fill="white"/>
+        <path d="M15 54 C8 54 5 59 5 64 C5 69 8 72 15 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+        <path d="M85 54 C92 54 95 59 95 64 C95 69 92 72 85 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+      </svg>
+    </button>
+    <div class="header-actions">
+      <button class="btn-back" onclick="navBack()">← Retour</button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <img id="ing-img" class="detail-img" src="" alt="" loading="lazy" />
+    <h1 class="screen-title"  id="ing-title"></h1>
+    <p  class="screen-subtitle" id="ing-sub"></p>
+
+    <div class="card-section">
+      <div class="card-section-title">🛒 Ingrédients à acheter</div>
+      <ul class="ing-list" id="ing-list"></ul>
+    </div>
+
+    <button class="btn-recipe" onclick="showRecipe()">
+      📖 Voir la Recette
+    </button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     RECETTE
+══════════════════════════════════════════════════════════════ -->
+<div id="screen-recipe" class="screen">
+
+  <header class="app-header">
+    <button class="logo-btn" onclick="goHome()">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 29 C29 22 33 16 31 10" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <path d="M50 26 C47 19 51 13 49 7"  stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <path d="M68 29 C65 22 69 16 67 10" stroke="white" stroke-width="3" stroke-linecap="round"/>
+        <rect x="43" y="32" width="14" height="5" rx="2.5" fill="white"/>
+        <path d="M15 46 C15 37 29 33 50 33 C71 33 85 37 85 46 Z" fill="white"/>
+        <path d="M15 46 L20 82 C20 87 31 91 50 91 C69 91 80 87 80 82 L85 46 Z" fill="white"/>
+        <path d="M15 54 C8 54 5 59 5 64 C5 69 8 72 15 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+        <path d="M85 54 C92 54 95 59 95 64 C95 69 92 72 85 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+      </svg>
+    </button>
+    <div class="header-actions">
+      <button class="btn-back" onclick="navBack()">← Retour</button>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <img id="rec-img" class="detail-img" src="" alt="" loading="lazy" />
+    <h1 class="screen-title" id="rec-title"></h1>
+
+    <div class="time-cards-row">
+      <div class="time-info-card">
+        <div class="tc-label">⏱️ Préparation</div>
+        <div class="tc-val" id="rec-prep">—</div>
+        <div class="tc-unit">minutes</div>
+      </div>
+      <div class="time-info-card">
+        <div class="tc-label">🔥 Cuisson</div>
+        <div class="tc-val" id="rec-cook">—</div>
+        <div class="tc-unit">minutes</div>
+      </div>
+      <div class="time-info-card">
+        <div class="tc-label">⏰ Total</div>
+        <div class="tc-val" id="rec-total">—</div>
+        <div class="tc-unit">minutes</div>
+      </div>
+    </div>
+
+    <div class="card-section">
+      <div class="card-section-title">
+        <span>👨‍🍳 Instructions</span>
+        <button class="btn-details" onclick="openDetails()">Détails →</button>
+      </div>
+      <div class="step-list" id="rec-steps"></div>
+    </div>
+
+    <button class="btn-prepared" id="btn-prepared" onclick="markPrepared()">
+      ✅ Préparé !
+    </button>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
