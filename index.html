@@ -38,7 +38,13 @@
       --safe-bot:    env(safe-area-inset-bottom, 0px);
     }
 
-    html, body {
+    html {
+      height: 100%;
+      background: var(--bg);
+      overscroll-behavior: none;
+    }
+
+    body {
       height: 100%;
       overscroll-behavior: none;
     }
@@ -935,8 +941,8 @@ const UNITS_FR = {
   'drops':       'gouttes',
   'drop':        'goutte',
 
-  'smidgen':     'soupçon',
-  'smidgens':    'soupçons',
+  'smidgen':     'pointe',
+  'smidgens':    'pointes',
 
   // solides / botaniques
   'sticks':      'bâtons',
@@ -1053,17 +1059,37 @@ const UNITS_FR = {
  * Applique d'abord la conversion de fractions mixtes,
  * puis remplace les unités connues (le plus long d'abord).
  */
+/**
+ * Convertit les livres (lb/lbs/pound/pounds) en grammes.
+ * 1 lb = 450 g. Gère les décimales et les fractions mixtes déjà converties.
+ * Ex : "2 lb" → "900g"  |  "1,5 lb" → "675g"  |  "0.5 lbs" → "225g"
+ */
+function convertPoundsToGrams(s) {
+  // Nombre décimal FR (virgule) ou EN (point) suivi de lb/lbs/pound/pounds
+  return s.replace(
+    /([\d]+(?:[,.]\d+)?)\s*(?:lbs?|pounds?)/gi,
+    (_, n) => {
+      const val = parseFloat(n.replace(',', '.'));
+      const grams = Math.round(val * 450);
+      return grams + 'g';
+    }
+  );
+}
+
 function translateMeasure(raw) {
   if (!raw || !raw.trim()) return raw;
 
   // 1. Fractions mixtes → notation décimale FR
   let s = convertMixedNumber(raw.trim());
 
-  // 2. Remplacement des unités (ordre décroissant de longueur pour éviter
-  //    que "tsp" remplace la sous-chaîne de "tablespoon" etc.)
-  const keys = Object.keys(UNITS_FR).sort((a, b) => b.length - a.length);
+  // 2. Conversion livres → grammes (avant le remplacement textuel)
+  s = convertPoundsToGrams(s);
+
+  // 3. Remplacement des unités (ordre décroissant de longueur)
+  const keys = Object.keys(UNITS_FR)
+    .filter(k => !['pounds','pound','lbs','lb'].includes(k)) // déjà gérés
+    .sort((a, b) => b.length - a.length);
   for (const key of keys) {
-    // Regex : délimiteurs de mot (début/fin ou espace/ponctuation)
     const re = new RegExp('(?<![\\w\\u00C0-\\u024F])' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w\\u00C0-\\u024F])', 'gi');
     s = s.replace(re, UNITS_FR[key]);
   }
