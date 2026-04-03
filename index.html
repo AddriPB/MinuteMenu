@@ -1393,7 +1393,7 @@ function processSpoonMeal(raw) {
 }
 
 async function fetchSpoonRandom() {
-  const url = `${SPOON}/recipes/random?number=6&includeNutrition=false&apiKey=${SPOON_KEY}`;
+  const url = `${SPOON}/recipes/random?number=6&includeNutrition=false&apiKey=${SPOON_KEY}&language=fr`;
   const res  = await fetch(url);
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
