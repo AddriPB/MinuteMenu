@@ -185,13 +185,11 @@
     #screen-login {
       background: linear-gradient(160deg, #FF6B35 0%, #C94B1E 42%, #1B4332 100%);
       min-height: 100dvh;
-      display: flex;
       flex-direction: column;
       align-items: stretch;
       justify-content: flex-end;
       padding-bottom: calc(32px + var(--safe-bot));
     }
-    #screen-login.active { display: flex; }
 
     .login-hero {
       flex: 1;
@@ -743,7 +741,47 @@ const FIREBASE_CONFIG = {
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.firestore();
 
-/* ── Traductions ────────────────────────────────────────────── */
+/* ── Traduction automatique (Google Translate non-officiel, gratuit) ── */
+const _tCache = {};
+
+async function translateText(text) {
+  if (!text || !text.trim()) return text;
+  if (_tCache[text]) return _tCache[text];
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=fr&dt=t&q=${encodeURIComponent(text)}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    const translated = data[0].map(item => item[0]).join('');
+    _tCache[text] = translated;
+    return translated;
+  } catch (e) {
+    return text; // fallback : texte original
+  }
+}
+
+/* Traduit en lot les ingrédients absents du dictionnaire */
+async function translateUnknownIngredients(ingredients) {
+  const unknown = ingredients.filter(i => !i._translated);
+  if (unknown.length === 0) return;
+  try {
+    const batch      = unknown.map(i => i.originalName).join('\n');
+    const translated = await translateText(batch);
+    const lines      = translated.split('\n');
+    unknown.forEach((ing, idx) => {
+      if (lines[idx] && lines[idx].trim()) {
+        ing.name = lines[idx].trim();
+      }
+      ing._translated = true;
+    });
+  } catch (_) {}
+}
+
+/* Ajoute un saut de ligne après chaque phrase */
+function addSentenceBreaks(text) {
+  return text.replace(/([.!?])\s+/g, '$1<br>').trim();
+}
+
+/* ── Traductions statiques ──────────────────────────────────── */
 const CATEGORIES_FR = {
   'Beef':          'Bœuf',
   'Chicken':       'Poulet',
@@ -855,7 +893,8 @@ const ING_FR = {
 
 function translateIngredient(name) {
   const key = name.toLowerCase().trim();
-  return ING_FR[key] || name;
+  const fr  = ING_FR[key];
+  return { name: fr || name, originalName: name, _translated: !!fr };
 }
 
 function translateCategory(cat) {
@@ -955,7 +994,10 @@ function parseIngredients(raw) {
   for (let i = 1; i <= 20; i++) {
     const name    = (raw['strIngredient' + i] || '').trim();
     const measure = (raw['strMeasure'    + i] || '').trim();
-    if (name) list.push({ name: translateIngredient(name), measure });
+    if (name) {
+      const t = translateIngredient(name);
+      list.push({ name: t.name, originalName: t.originalName, _translated: t._translated, measure });
+    }
   }
   return list;
 }
@@ -975,15 +1017,17 @@ function parseSteps(text) {
 function processMeal(raw) {
   const t = getTimes(raw.strCategory);
   return {
-    id:           raw.idMeal,
-    name:         raw.strMeal,
-    image:        raw.strMealThumb,
-    category:     raw.strCategory || '',
-    area:         raw.strArea     || '',
-    prepTime:     t.prep,
-    cookTime:     t.cook,
-    ingredients:  parseIngredients(raw),
-    instructions: raw.strInstructions || ''
+    id:             raw.idMeal,
+    name:           raw.strMeal,       // sera traduit à l'affichage
+    nameFr:         null,              // cache de traduction
+    image:          raw.strMealThumb,
+    category:       raw.strCategory || '',
+    area:           raw.strArea     || '',
+    prepTime:       t.prep,
+    cookTime:       t.cook,
+    ingredients:    parseIngredients(raw),
+    instructions:   raw.strInstructions || '',
+    instructionsFr: null               // cache de traduction
   };
 }
 
@@ -1086,6 +1130,12 @@ function handleLogout() {
 }
 
 /* ── Écran d'accueil ────────────────────────────────────────── */
+async function translateMealNames(meals) {
+  await Promise.all(meals.map(async m => {
+    if (!m.nameFr) m.nameFr = await translateText(m.name);
+  }));
+}
+
 async function initHome() {
   showScreen('home');
   showSkeletons();
@@ -1097,7 +1147,9 @@ async function initHome() {
       await saveDailyMeals(currentUser.code, meals);
     }
     dailyMeals = meals;
-    renderMealCards(meals);
+    renderMealCards(meals);           // affichage immédiat (noms EN)
+    await translateMealNames(meals);  // traduction en arrière-plan
+    renderMealCards(meals);           // ré-affichage avec noms FR
   } catch (e) {
     console.error(e);
     document.getElementById('meals-grid').innerHTML =
@@ -1117,6 +1169,8 @@ async function refreshMeals() {
     const meals = await fetchUniqueMeals(3, prepared);
     dailyMeals = meals;
     await saveDailyMeals(currentUser.code, meals);
+    renderMealCards(meals);
+    await translateMealNames(meals);
     renderMealCards(meals);
   } catch (e) {
     console.error(e);
@@ -1152,11 +1206,11 @@ function renderMealCards(meals) {
   }
   grid.innerHTML = meals.map(m => `
     <div class="meal-card" onclick="openMeal('${m.id}')">
-      <img class="meal-card-img" src="${escHtml(m.image)}" alt="${escHtml(m.name)}"
+      <img class="meal-card-img" src="${escHtml(m.image)}" alt="${escHtml(m.nameFr || m.name)}"
            onerror="this.src='';this.style.minHeight='80px';this.style.background='#FFF0E8';"
            loading="lazy" />
       <div class="meal-card-body">
-        <div class="meal-card-name">${escHtml(m.name)}</div>
+        <div class="meal-card-name">${escHtml(m.nameFr || m.name)}</div>
         <div class="time-row">
           <div class="time-pill">⏱️ Prép. ${m.prepTime} min</div>
           <div class="time-pill">🔥 Cuisson ${m.cookTime} min</div>
@@ -1166,13 +1220,13 @@ function renderMealCards(meals) {
 }
 
 /* ── Écran Ingrédients ──────────────────────────────────────── */
-function openMeal(mealId) {
+async function openMeal(mealId) {
   activeMeal = dailyMeals.find(m => m.id === mealId);
   if (!activeMeal) return;
 
-  document.getElementById('ing-img').src   = activeMeal.image;
-  document.getElementById('ing-img').alt   = activeMeal.name;
-  document.getElementById('ing-title').textContent = activeMeal.name;
+  // Affichage immédiat avec ce qu'on a
+  document.getElementById('ing-img').src = activeMeal.image;
+  document.getElementById('ing-img').alt = activeMeal.nameFr || activeMeal.name;
 
   const catFr  = translateCategory(activeMeal.category);
   const areaFr = translateArea(activeMeal.area);
@@ -1182,6 +1236,16 @@ function openMeal(mealId) {
   if (catFr)  parts.push(catFr);
   if (areaFr) parts.push(`Cuisine ${areaFr}`);
   document.getElementById('ing-sub').textContent = parts.join('  ·  ');
+
+  // Traduction du nom si pas encore fait
+  if (!activeMeal.nameFr) {
+    document.getElementById('ing-title').textContent = activeMeal.name;
+    activeMeal.nameFr = await translateText(activeMeal.name);
+  }
+  document.getElementById('ing-title').textContent = activeMeal.nameFr;
+
+  // Traduction des ingrédients non encore traduits
+  await translateUnknownIngredients(activeMeal.ingredients);
 
   document.getElementById('ing-list').innerHTML = activeMeal.ingredients.map(ing => `
     <li class="ing-item">
@@ -1194,24 +1258,15 @@ function openMeal(mealId) {
 }
 
 /* ── Écran Recette ──────────────────────────────────────────── */
-function showRecipe() {
+async function showRecipe() {
   if (!activeMeal) return;
 
   document.getElementById('rec-img').src   = activeMeal.image;
-  document.getElementById('rec-img').alt   = activeMeal.name;
-  document.getElementById('rec-title').textContent = activeMeal.name;
+  document.getElementById('rec-img').alt   = activeMeal.nameFr || activeMeal.name;
+  document.getElementById('rec-title').textContent = activeMeal.nameFr || activeMeal.name;
   document.getElementById('rec-prep').textContent  = activeMeal.prepTime;
   document.getElementById('rec-cook').textContent  = activeMeal.cookTime;
   document.getElementById('rec-total').textContent = activeMeal.prepTime + activeMeal.cookTime;
-
-  const steps = parseSteps(activeMeal.instructions);
-  document.getElementById('rec-steps').innerHTML = steps.length
-    ? steps.map((s, i) => `
-        <div class="step-item">
-          <div class="step-num">${i + 1}</div>
-          <div class="step-text">${escHtml(s)}</div>
-        </div>`).join('')
-    : '<p style="color:var(--gray);font-style:italic;font-size:13.5px;">Instructions non disponibles pour ce plat.</p>';
 
   const done = (currentUser.preparedMeals || []).includes(activeMeal.id);
   const btn  = document.getElementById('btn-prepared');
@@ -1219,6 +1274,25 @@ function showRecipe() {
   btn.textContent = done ? '✅ Déjà préparé' : '✅ Préparé !';
 
   showScreen('recipe');
+
+  // Traduction des instructions (peut prendre un peu de temps)
+  const stepsEl = document.getElementById('rec-steps');
+  stepsEl.innerHTML = '<p style="color:var(--gray);font-style:italic;font-size:13.5px;">Traduction en cours…</p>';
+
+  if (!activeMeal.instructionsFr && activeMeal.instructions) {
+    activeMeal.instructionsFr = await translateText(activeMeal.instructions);
+  }
+
+  const srcText = activeMeal.instructionsFr || activeMeal.instructions;
+  const steps   = parseSteps(srcText);
+
+  stepsEl.innerHTML = steps.length
+    ? steps.map((s, i) => `
+        <div class="step-item">
+          <div class="step-num">${i + 1}</div>
+          <div class="step-text">${addSentenceBreaks(escHtml(s))}</div>
+        </div>`).join('')
+    : '<p style="color:var(--gray);font-style:italic;font-size:13.5px;">Instructions non disponibles pour ce plat.</p>';
 }
 
 /* ── Marquer comme préparé ──────────────────────────────────── */
