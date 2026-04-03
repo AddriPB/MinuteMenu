@@ -998,6 +998,9 @@ const UNITS_FR = {
   'grated':      'râpé',
   'ground':      'moulu',
   'beaten':      'battu',
+  'boiling':     'bouillant',
+  'scoops':      'boules',
+  'scoop':       'boule',
   'cooked':      'cuit',
   'peeled':      'pelé',
   'fresh':       'frais',
@@ -1517,7 +1520,7 @@ async function openMeal(mealId) {
     <li class="ing-item">
       <div class="ing-dot"></div>
       <span class="ing-name">${escHtml(ing.name)}</span>
-      <span class="ing-measure">${escHtml(ing.measure)}</span>
+      <span class="ing-measure">${escHtml(translateMeasure(ing.measure || ''))}</span>
     </li>`).join('');
 
   showScreen('ingredients');
