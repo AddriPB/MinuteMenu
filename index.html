@@ -831,6 +831,246 @@ const AREAS_FR = {
   'Unknown':    'Inconnue'
 };
 
+/* ── Traduction des quantités / mesures ─────────────────────── */
+
+/**
+ * Convertit les fractions mixtes anglaises en notation française.
+ * Ex : "1 1/2" → "1,5"  |  "1 1/3" → "1,33"  |  "1/2" reste "1/2"
+ */
+function convertMixedNumber(str) {
+  // Fraction mixte : entier + espace + fraction  (ex: "1 1/2", "2 3/4")
+  return str.replace(/\b(\d+)\s+(\d+)\/(\d+)\b/g, (_, whole, num, den) => {
+    const val = parseInt(whole) + parseInt(num) / parseInt(den);
+    // Arrondi à 2 décimales, suppression des zéros inutiles
+    const rounded = Math.round(val * 100) / 100;
+    return String(rounded).replace('.', ',');
+  });
+}
+
+/**
+ * Dictionnaire d'unités EN→FR (insensible à la casse, singulier+pluriel).
+ * On remplace les unités dans la chaîne measure après normalisation.
+ */
+const UNITS_FR = {
+  // cuillères
+  'teaspoons':   'cuillères à café',
+  'teaspoon':    'cuillère à café',
+  'tspns':       'cuillères à café',
+  'tspn':        'cuillère à café',
+  'tsps':        'cuillères à café',
+  'tsp':         'cuillère à café',
+
+  'tablespoons': 'cuillères à soupe',
+  'tablespoon':  'cuillère à soupe',
+  'tbsps':       'cuillères à soupe',
+  'tbsp':        'cuillère à soupe',
+  'tbs':         'cuillère à soupe',
+  'tbl':         'cuillère à soupe',
+
+  // volume
+  'fluid ounces':'onces liquides',
+  'fluid ounce': 'once liquide',
+  'fl oz':       'once liquide',
+  'fl. oz':      'once liquide',
+  'fl. oz.':     'once liquide',
+
+  'cups':        'tasses',
+  'cup':         'tasse',
+
+  'pints':       'pintes',
+  'pint':        'pinte',
+  'pt':          'pinte',
+
+  'quarts':      'quarts',
+  'quart':       'quart',
+  'qt':          'quart',
+
+  'gallons':     'gallons',
+  'gallon':      'gallon',
+  'gal':         'gallon',
+
+  'milliliters': 'millilitres',
+  'millilitres': 'millilitres',
+  'milliliter':  'millilitre',
+  'millilitre':  'millilitre',
+  'ml':          'ml',
+  'mls':         'ml',
+
+  'liters':      'litres',
+  'litres':      'litres',
+  'liter':       'litre',
+  'litre':       'litre',
+  'l':           'l',
+
+  // masse
+  'ounces':      'onces',
+  'ounce':       'once',
+  'ozs':         'onces',
+  'oz':          'once',
+
+  'pounds':      'livres',
+  'pound':       'livre',
+  'lbs':         'livres',
+  'lb':          'livre',
+
+  'grams':       'grammes',
+  'gram':        'gramme',
+  'gms':         'grammes',
+  'gm':          'gramme',
+  'gs':          'g',
+  'g':           'g',
+
+  'kilograms':   'kilogrammes',
+  'kilogram':    'kilogramme',
+  'kgs':         'kg',
+  'kg':          'kg',
+
+  // petites mesures
+  'pinches':     'pincées',
+  'pinch':       'pincée',
+
+  'dashes':      'traits',
+  'dash':        'trait',
+
+  'drops':       'gouttes',
+  'drop':        'goutte',
+
+  'smidgen':     'soupçon',
+  'smidgens':    'soupçons',
+
+  // solides / botaniques
+  'sticks':      'bâtons',
+  'stick':       'bâton',
+
+  'cloves':      'gousses',
+  'clove':       'gousse',
+
+  'bunches':     'bottes',
+  'bunch':       'botte',
+
+  'sprigs':      'brins',
+  'sprig':       'brin',
+
+  'heads':       'têtes',
+  'head':        'tête',
+
+  'stalks':      'tiges',
+  'stalk':       'tige',
+
+  'ribs':        'branches',
+  'rib':         'branche',
+
+  'zests':       'zestes',
+  'zest':        'zeste',
+
+  'handfuls':    'poignées',
+  'handful':     'poignée',
+
+  'heaped tablespoons': 'cuillères à soupe bombées',
+  'heaped tablespoon':  'cuillère à soupe bombée',
+  'heaped teaspoons':   'cuillères à café bombées',
+  'heaped teaspoon':    'cuillère à café bombée',
+  'heaped spoonful':    'cuillère bombée',
+  'level tablespoons':  'cuillères à soupe rases',
+  'level tablespoon':   'cuillère à soupe rase',
+  'level teaspoons':    'cuillères à café rases',
+  'level teaspoon':     'cuillère à café rase',
+  'level spoonful':     'cuillère rase',
+
+  // adjectifs courants dans les mesures
+  'large':       'grand',
+  'medium':      'moyen',
+  'small':       'petit',
+  'large ones':  'gros',
+  'whole':       'entier',
+  'halved':      'en deux',
+  'sliced':      'tranché',
+  'chopped':     'haché',
+  'diced':       'en dés',
+  'crushed':     'écrasé',
+  'minced':      'haché finement',
+  'grated':      'râpé',
+  'ground':      'moulu',
+  'beaten':      'battu',
+  'cooked':      'cuit',
+  'peeled':      'pelé',
+  'fresh':       'frais',
+  'dried':       'séché',
+  'frozen':      'congelé',
+  'can':         'boîte',
+  'cans':        'boîtes',
+  'tin':         'boîte',
+  'tins':        'boîtes',
+  'package':     'sachet',
+  'packages':    'sachets',
+  'pack':        'sachet',
+  'packs':       'sachets',
+  'bag':         'sachet',
+  'bags':        'sachets',
+  'jar':         'bocal',
+  'jars':        'bocaux',
+  'bottle':      'bouteille',
+  'bottles':     'bouteilles',
+  'slice':       'tranche',
+  'slices':      'tranches',
+  'piece':       'morceau',
+  'pieces':      'morceaux',
+  'strip':       'lanière',
+  'strips':      'lanières',
+  'cube':        'cube',
+  'cubes':       'cubes',
+  'leaf':        'feuille',
+  'leaves':      'feuilles',
+  'spear':       'pointe',
+  'spears':      'pointes',
+  'floret':      'bouquet',
+  'florets':     'bouquets',
+  'clump':       'touffe',
+  'wedge':       'quartier',
+  'wedges':      'quartiers',
+  'rasher':      'tranche',
+  'rashers':     'tranches',
+  'knob':        'noix',
+  'knobs':       'noix',
+  'fillet':      'filet',
+  'fillets':     'filets',
+  'leg':         'cuisse',
+  'legs':        'cuisses',
+  'inch':        'cm',
+  'inches':      'cm',
+  'centimeter':  'cm',
+  'centimetre':  'cm',
+  'cm':          'cm',
+  'to taste':    'selon le goût',
+  'as needed':   'selon besoin',
+  'as required': 'selon besoin',
+  'optional':    'facultatif',
+  'or to taste': 'ou selon le goût',
+};
+
+/**
+ * Traduit une chaîne de mesure anglaise en français.
+ * Applique d'abord la conversion de fractions mixtes,
+ * puis remplace les unités connues (le plus long d'abord).
+ */
+function translateMeasure(raw) {
+  if (!raw || !raw.trim()) return raw;
+
+  // 1. Fractions mixtes → notation décimale FR
+  let s = convertMixedNumber(raw.trim());
+
+  // 2. Remplacement des unités (ordre décroissant de longueur pour éviter
+  //    que "tsp" remplace la sous-chaîne de "tablespoon" etc.)
+  const keys = Object.keys(UNITS_FR).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    // Regex : délimiteurs de mot (début/fin ou espace/ponctuation)
+    const re = new RegExp('(?<![\\w\\u00C0-\\u024F])' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w\\u00C0-\\u024F])', 'gi');
+    s = s.replace(re, UNITS_FR[key]);
+  }
+
+  return s;
+}
+
 /* Dictionnaire des ingrédients courants EN→FR */
 const ING_FR = {
   'chicken breast':'blanc de poulet','chicken thighs':'cuisses de poulet',
@@ -996,7 +1236,7 @@ function parseIngredients(raw) {
     const measure = (raw['strMeasure'    + i] || '').trim();
     if (name) {
       const t = translateIngredient(name);
-      list.push({ name: t.name, originalName: t.originalName, _translated: t._translated, measure });
+      list.push({ name: t.name, originalName: t.originalName, _translated: t._translated, measure: translateMeasure(measure) });
     }
   }
   return list;
