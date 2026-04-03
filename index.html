@@ -2,12 +2,14 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>MinuteMenu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <!-- Firebase 10 compat -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
@@ -21,6 +23,7 @@
       --green:       #2D6A4F;
       --green-dark:  #1B4332;
       --mint:        #A8E6CF;
+      --mint-light:  #6EE7B7;
       --bg:          #FFF8F3;
       --white:       #FFFFFF;
       --dark:        #1A1A2E;
@@ -30,25 +33,34 @@
       --shadow:      0 4px 20px rgba(0,0,0,.08);
       --shadow-lg:   0 8px 32px rgba(0,0,0,.14);
       --r:           16px;
-      --r-sm:        10px;
+      --r-sm:        12px;
+      --safe-top:    env(safe-area-inset-top, 0px);
+      --safe-bot:    env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      overscroll-behavior: none;
     }
 
     body {
       font-family: 'Poppins', sans-serif;
       background: var(--bg);
       color: var(--dark);
-      min-height: 100vh;
+      min-height: 100dvh;
       -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
     }
 
     /* ── Screens ────────────────────────────────────────────── */
-    .screen { display: none; min-height: 100vh; flex-direction: column; }
+    .screen { display: none; min-height: 100dvh; flex-direction: column; }
     .screen.active { display: flex; }
 
-    /* ── App header (home / ingredients / recipe) ───────────── */
+    /* ── App header ─────────────────────────────────────────── */
     .app-header {
       background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
-      padding: 14px 20px;
+      padding: 12px 16px;
+      padding-top: calc(12px + var(--safe-top));
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -61,25 +73,27 @@
     .logo-btn {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       background: none;
       border: none;
       cursor: pointer;
-      text-decoration: none;
-      padding: 0;
+      padding: 4px;
+      -webkit-tap-highlight-color: transparent;
     }
+    .logo-btn svg { width: 34px; height: 34px; }
 
-    .logo-btn svg { width: 38px; height: 38px; }
-
-    .logo-wordmark { font-size: 21px; font-weight: 700; line-height: 1; }
+    .logo-wordmark { font-size: 19px; font-weight: 700; line-height: 1; }
     .logo-wordmark .m1 { color: #FFFFFF; }
     .logo-wordmark .m2 { color: var(--mint); }
+
+    /* header right-side actions */
+    .header-actions { display: flex; align-items: center; gap: 8px; }
 
     .btn-back {
       background: rgba(255,255,255,.2);
       border: none;
       color: #fff;
-      padding: 8px 18px;
+      padding: 8px 16px;
       border-radius: 24px;
       font-family: 'Poppins', sans-serif;
       font-size: 13px;
@@ -88,16 +102,35 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      transition: background .2s;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
     }
-    .btn-back:hover { background: rgba(255,255,255,.32); }
+    .btn-back:active { background: rgba(255,255,255,.35); }
+
+    .btn-logout {
+      background: rgba(255,255,255,.18);
+      border: 1.5px solid rgba(255,255,255,.55);
+      color: #fff;
+      padding: 7px 14px;
+      border-radius: 24px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      -webkit-tap-highlight-color: transparent;
+      letter-spacing: .2px;
+    }
+    .btn-logout:active { background: rgba(255,255,255,.32); }
 
     /* ── Page body ──────────────────────────────────────────── */
     .page-body {
       flex: 1;
-      padding: 24px 20px 40px;
+      padding: 20px 16px calc(32px + var(--safe-bot));
       width: 100%;
-      max-width: 620px;
+      max-width: 480px;
       margin: 0 auto;
     }
 
@@ -106,18 +139,18 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(255,248,243,.92);
+      background: rgba(255,248,243,.94);
       z-index: 500;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      backdrop-filter: blur(2px);
+      gap: 14px;
+      backdrop-filter: blur(3px);
     }
     #loading-overlay.show { display: flex; }
 
     .spinner {
-      width: 44px; height: 44px;
+      width: 42px; height: 42px;
       border: 3px solid rgba(255,107,53,.2);
       border-top-color: var(--orange);
       border-radius: 50%;
@@ -128,7 +161,7 @@
     /* ── Toast ──────────────────────────────────────────────── */
     #toast {
       position: fixed;
-      bottom: 32px;
+      bottom: calc(28px + var(--safe-bot));
       left: 50%;
       transform: translateX(-50%) translateY(90px);
       background: var(--dark);
@@ -141,122 +174,178 @@
       z-index: 600;
       white-space: nowrap;
       box-shadow: 0 4px 20px rgba(0,0,0,.25);
+      max-width: calc(100vw - 40px);
+      text-align: center;
     }
     #toast.show { transform: translateX(-50%) translateY(0); }
 
     /* ══════════════════════════════════════════════════════════
-       LOGIN SCREEN
+       LOGIN SCREEN  —  full mobile
     ══════════════════════════════════════════════════════════ */
     #screen-login {
-      background: linear-gradient(155deg, var(--orange) 0%, #C94B1E 45%, var(--green-dark) 100%);
-      align-items: center;
-      justify-content: center;
-      padding: 40px 20px;
+      background: linear-gradient(160deg, #FF6B35 0%, #C94B1E 42%, #1B4332 100%);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-end;
+      padding-bottom: calc(32px + var(--safe-bot));
     }
+    #screen-login.active { display: flex; }
 
     .login-hero {
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-bottom: 36px;
+      justify-content: center;
+      padding: calc(48px + var(--safe-top)) 24px 32px;
+      gap: 14px;
     }
 
     .login-pot-wrap {
-      width: 90px; height: 90px;
+      width: 86px; height: 86px;
       background: rgba(255,255,255,.15);
-      border-radius: 26px;
+      border-radius: 28px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 18px;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 4px 24px rgba(0,0,0,.15);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 6px 28px rgba(0,0,0,.18);
+      margin-bottom: 6px;
     }
 
     .login-title {
-      font-size: 38px;
+      font-size: 40px;
       font-weight: 700;
       line-height: 1;
-      margin-bottom: 8px;
     }
     .login-title .m1 { color: #fff; }
     .login-title .m2 { color: var(--mint); }
 
-    .login-tagline { color: rgba(255,255,255,.8); font-size: 15px; }
-
-    .login-card {
-      background: #fff;
-      border-radius: 24px;
-      padding: 32px;
-      width: 100%;
-      max-width: 380px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.22);
+    .login-tagline {
+      color: rgba(255,255,255,.78);
+      font-size: 15px;
+      letter-spacing: .2px;
     }
 
-    .login-card h2 { font-size: 19px; font-weight: 600; margin-bottom: 6px; }
-    .login-card p  { color: var(--gray); font-size: 13.5px; margin-bottom: 22px; line-height: 1.6; }
+    /* Bottom sheet card */
+    .login-card {
+      background: #fff;
+      border-radius: 28px 28px 0 0;
+      padding: 30px 24px 12px;
+      box-shadow: 0 -8px 40px rgba(0,0,0,.18);
+    }
+    @supports (border-radius: env(safe-area-inset-bottom)) {
+      .login-card { border-radius: 28px 28px 0 0; }
+    }
 
-    .code-row { display: flex; gap: 10px; }
+    .login-card h2 {
+      font-size: 20px; font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .login-card .login-hint {
+      color: var(--gray);
+      font-size: 13.5px;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
 
     #code-input {
-      flex: 1;
-      padding: 14px 16px;
+      width: 100%;
+      padding: 16px;
       border: 2px solid var(--border);
       border-radius: var(--r-sm);
       font-family: 'Poppins', sans-serif;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 700;
-      letter-spacing: 5px;
+      letter-spacing: 6px;
       text-align: center;
       text-transform: uppercase;
       outline: none;
-      transition: border-color .2s;
       color: var(--dark);
+      margin-bottom: 12px;
+      transition: border-color .2s;
     }
     #code-input:focus { border-color: var(--orange); }
 
     .btn-primary {
+      width: 100%;
+      padding: 16px;
       background: linear-gradient(135deg, var(--orange), var(--orange-dark));
       color: #fff;
       border: none;
       border-radius: var(--r-sm);
       font-family: 'Poppins', sans-serif;
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 700;
-      padding: 14px 20px;
       cursor: pointer;
-      transition: transform .15s, box-shadow .15s;
+      transition: opacity .15s;
+      letter-spacing: .3px;
     }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(255,107,53,.4); }
+    .btn-primary:active { opacity: .88; }
 
     #login-error {
       display: none;
       color: #EF4444;
       font-size: 13px;
-      margin-top: 12px;
+      margin-top: 10px;
+      text-align: center;
     }
 
     /* ══════════════════════════════════════════════════════════
        HOME SCREEN
     ══════════════════════════════════════════════════════════ */
-    .home-intro h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-    .home-intro p  { color: var(--gray); font-size: 13.5px; }
+    .home-intro {
+      margin-bottom: 14px;
+    }
+    .home-intro h1 {
+      font-size: 21px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
 
-    .date-chip {
+    /* Orange info bar with text + refresh button */
+    .daily-bar {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
       background: linear-gradient(135deg, var(--orange), var(--orange-dark));
       color: #fff;
-      padding: 10px 16px;
+      padding: 11px 11px 11px 16px;
       border-radius: var(--r-sm);
       font-size: 13px;
       font-weight: 500;
-      margin: 14px 0 20px;
-      letter-spacing: .3px;
+      margin-bottom: 18px;
+      letter-spacing: .2px;
+      gap: 8px;
     }
 
-    .meals-grid { display: flex; flex-direction: column; gap: 18px; }
+    .daily-bar-text { flex: 1; line-height: 1.4; }
+
+    .btn-refresh {
+      background: none;
+      border: none;
+      padding: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .3s ease;
+    }
+    .btn-refresh:active { transform: rotate(180deg); }
+    .btn-refresh svg {
+      width: 22px; height: 22px;
+      color: var(--mint-light);
+    }
+    .btn-refresh.spinning svg {
+      animation: spin .65s linear infinite;
+    }
+
+    .meals-grid { display: flex; flex-direction: column; gap: 16px; }
 
     /* ── Meal card ── */
     .meal-card {
@@ -265,41 +354,41 @@
       overflow: hidden;
       box-shadow: var(--shadow);
       cursor: pointer;
-      transition: transform .2s, box-shadow .2s;
       position: relative;
+      -webkit-tap-highlight-color: transparent;
     }
-    .meal-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+    .meal-card:active { transform: scale(.98); }
 
     .meal-card-img {
       width: 100%;
-      height: 200px;
+      height: 185px;
       object-fit: cover;
       display: block;
       background: var(--gray-light);
     }
 
-    .meal-card-body { padding: 16px; }
+    .meal-card-body { padding: 14px; }
     .meal-card-name {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 600;
       margin-bottom: 10px;
       line-height: 1.4;
     }
 
-    .time-row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .time-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .time-pill {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 12.5px;
+      gap: 5px;
+      font-size: 12px;
       color: var(--gray);
       background: var(--gray-light);
-      padding: 5px 11px;
+      padding: 5px 10px;
       border-radius: 20px;
       font-weight: 500;
     }
 
-    /* ── Skeleton loader ── */
+    /* ── Skeleton ── */
     .skel {
       background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 50%, #f0f0f0 75%);
       background-size: 200% 100%;
@@ -307,23 +396,17 @@
       border-radius: 6px;
     }
     @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-
     .skel-card {
       background: var(--white);
       border-radius: var(--r);
       overflow: hidden;
       box-shadow: var(--shadow);
-      pointer-events: none;
     }
 
     /* ── Empty state ── */
-    .empty-state {
-      text-align: center;
-      padding: 50px 20px;
-      color: var(--gray);
-    }
-    .empty-state .big-icon { font-size: 56px; margin-bottom: 16px; }
-    .empty-state h3 { font-size: 18px; color: var(--dark); margin-bottom: 8px; }
+    .empty-state { text-align: center; padding: 48px 16px; color: var(--gray); }
+    .empty-state .big-icon { font-size: 52px; margin-bottom: 14px; }
+    .empty-state h3 { font-size: 17px; color: var(--dark); margin-bottom: 8px; }
     .empty-state p { font-size: 14px; line-height: 1.6; }
 
     /* ══════════════════════════════════════════════════════════
@@ -331,34 +414,34 @@
     ══════════════════════════════════════════════════════════ */
     .detail-img {
       width: 100%;
-      height: 230px;
+      height: 210px;
       object-fit: cover;
       border-radius: var(--r);
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       display: block;
       background: var(--gray-light);
     }
 
-    .screen-title    { font-size: 22px; font-weight: 700; margin-bottom: 4px; line-height: 1.3; }
-    .screen-subtitle { color: var(--gray); font-size: 13px; margin-bottom: 20px; }
+    .screen-title    { font-size: 21px; font-weight: 700; margin-bottom: 4px; line-height: 1.3; }
+    .screen-subtitle { color: var(--gray); font-size: 12.5px; margin-bottom: 18px; line-height: 1.6; }
 
     .card-section {
       background: var(--white);
       border-radius: var(--r);
-      padding: 20px;
+      padding: 18px;
       box-shadow: var(--shadow);
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
     .card-section-title {
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 600;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .ing-list { list-style: none; display: flex; flex-direction: column; gap: 0; }
+    .ing-list { list-style: none; }
     .ing-item {
       display: flex;
       align-items: center;
@@ -368,96 +451,94 @@
     }
     .ing-item:last-child { border-bottom: none; padding-bottom: 0; }
     .ing-dot {
-      width: 8px; height: 8px;
+      width: 7px; height: 7px;
       background: var(--orange);
       border-radius: 50%;
       flex-shrink: 0;
     }
-    .ing-name    { font-size: 14.5px; flex: 1; }
-    .ing-measure { font-size: 13px; color: var(--gray); font-weight: 500; }
+    .ing-name    { font-size: 14px; flex: 1; }
+    .ing-measure { font-size: 12.5px; color: var(--gray); font-weight: 500; }
 
     .btn-recipe {
       width: 100%;
-      padding: 17px;
+      padding: 16px;
       background: linear-gradient(135deg, var(--green), var(--green-dark));
       color: #fff;
       border: none;
       border-radius: var(--r);
       font-family: 'Poppins', sans-serif;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      transition: transform .2s, box-shadow .2s;
       letter-spacing: .3px;
+      -webkit-tap-highlight-color: transparent;
     }
-    .btn-recipe:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(45,106,79,.38); }
+    .btn-recipe:active { opacity: .88; }
 
     /* ══════════════════════════════════════════════════════════
        RECIPE SCREEN
     ══════════════════════════════════════════════════════════ */
-    .time-cards-row { display: flex; gap: 12px; margin-bottom: 20px; }
-
+    .time-cards-row { display: flex; gap: 10px; margin-bottom: 18px; }
     .time-info-card {
       flex: 1;
       background: var(--white);
       border-radius: var(--r-sm);
-      padding: 14px 10px;
+      padding: 13px 8px;
       box-shadow: var(--shadow);
       text-align: center;
     }
-    .time-info-card .tc-label { font-size: 11px; color: var(--gray); margin-bottom: 4px; }
-    .time-info-card .tc-val   { font-size: 24px; font-weight: 700; color: var(--orange); line-height: 1; }
-    .time-info-card .tc-unit  { font-size: 10.5px; color: var(--gray); margin-top: 2px; }
+    .time-info-card .tc-label { font-size: 10.5px; color: var(--gray); margin-bottom: 4px; }
+    .time-info-card .tc-val   { font-size: 22px; font-weight: 700; color: var(--orange); line-height: 1; }
+    .time-info-card .tc-unit  { font-size: 10px; color: var(--gray); margin-top: 2px; }
 
-    .step-list { display: flex; flex-direction: column; gap: 16px; }
-    .step-item { display: flex; gap: 14px; align-items: flex-start; }
+    .step-list { display: flex; flex-direction: column; gap: 15px; }
+    .step-item { display: flex; gap: 13px; align-items: flex-start; }
     .step-num {
-      width: 28px; height: 28px;
+      width: 26px; height: 26px;
       background: var(--orange);
       color: #fff;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
       flex-shrink: 0;
-      margin-top: 1px;
+      margin-top: 2px;
     }
-    .step-text { font-size: 14px; line-height: 1.75; color: #374151; }
+    .step-text { font-size: 13.5px; line-height: 1.75; color: #374151; }
 
     .btn-prepared {
       width: 100%;
-      padding: 17px;
+      padding: 16px;
       background: linear-gradient(135deg, var(--orange), var(--orange-dark));
       color: #fff;
       border: none;
       border-radius: var(--r);
       font-family: 'Poppins', sans-serif;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      transition: transform .2s, box-shadow .2s, opacity .2s;
-      margin-bottom: 32px;
+      transition: opacity .2s;
+      margin-bottom: 24px;
       letter-spacing: .3px;
+      -webkit-tap-highlight-color: transparent;
     }
-    .btn-prepared:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(255,107,53,.38); }
-    .btn-prepared:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-prepared:active:not(:disabled) { opacity: .88; }
+    .btn-prepared:disabled { opacity: .58; cursor: not-allowed; }
   </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════
-     LOADING OVERLAY
-══════════════════════════════════════════════════════════════ -->
+<!-- LOADING -->
 <div id="loading-overlay">
   <div class="spinner"></div>
   <p style="color:var(--gray);font-size:14px;">Chargement…</p>
@@ -467,26 +548,20 @@
 <div id="toast"></div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     SCREEN · LOGIN
+     CONNEXION
 ══════════════════════════════════════════════════════════════ -->
 <div id="screen-login" class="screen active">
 
   <div class="login-hero">
     <div class="login-pot-wrap">
-      <svg width="58" height="58" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- steam -->
-        <path d="M32 29 C29 22 33 16 31 10" stroke="white" stroke-width="3" stroke-linecap="round"/>
-        <path d="M50 26 C47 19 51 13 49 7"  stroke="white" stroke-width="3" stroke-linecap="round"/>
-        <path d="M68 29 C65 22 69 16 67 10" stroke="white" stroke-width="3" stroke-linecap="round"/>
-        <!-- lid knob -->
+      <svg width="54" height="54" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 29 C29 22 33 16 31 10" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M50 26 C47 19 51 13 49 7"  stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M68 29 C65 22 69 16 67 10" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
         <rect x="43" y="32" width="14" height="5" rx="2.5" fill="white"/>
-        <!-- lid -->
         <path d="M15 46 C15 37 29 33 50 33 C71 33 85 37 85 46 Z" fill="white"/>
-        <!-- body -->
         <path d="M15 46 L20 82 C20 87 31 91 50 91 C69 91 80 87 80 82 L85 46 Z" fill="white"/>
-        <!-- handle left -->
         <path d="M15 54 C8 54 5 59 5 64 C5 69 8 72 15 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
-        <!-- handle right -->
         <path d="M85 54 C92 54 95 59 95 64 C95 69 92 72 85 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
       </svg>
     </div>
@@ -496,18 +571,16 @@
 
   <div class="login-card">
     <h2>Connexion</h2>
-    <p>Entrez votre code personnel pour accéder à votre espace et retrouver vos sélections.</p>
-    <div class="code-row">
-      <input id="code-input" type="text" class="" placeholder="CODE" maxlength="12" autocomplete="off" spellcheck="false" />
-      <button class="btn-primary" onclick="handleLogin()">→</button>
-    </div>
+    <p class="login-hint">Entrez votre code personnel pour accéder à votre espace.</p>
+    <input id="code-input" type="text" placeholder="CODE" maxlength="12" autocomplete="off" spellcheck="false" autocapitalize="characters" inputmode="text" />
+    <button class="btn-primary" onclick="handleLogin()">Accéder à mon espace →</button>
     <div id="login-error"></div>
   </div>
 
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     SCREEN · HOME
+     ACCUEIL
 ══════════════════════════════════════════════════════════════ -->
 <div id="screen-home" class="screen">
 
@@ -525,27 +598,40 @@
       </svg>
       <span class="logo-wordmark"><span class="m1">Minute</span><span class="m2">Menu</span></span>
     </button>
-    <div></div><!-- spacer -->
+    <div class="header-actions">
+      <button class="btn-logout" onclick="handleLogout()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Déconnexion
+      </button>
+    </div>
   </header>
 
   <div class="page-body">
     <div class="home-intro">
       <h1>Que cuisiner aujourd'hui ?</h1>
-      <p>3 idées du jour sélectionnées pour vous</p>
     </div>
-    <div class="date-chip" id="date-chip">📅 …</div>
+
+    <div class="daily-bar">
+      <span class="daily-bar-text">3 idées du jour sélectionnées pour vous</span>
+      <button class="btn-refresh" id="btn-refresh" onclick="refreshMeals()" title="Actualiser">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+      </button>
+    </div>
+
     <div class="meals-grid" id="meals-grid">
-      <!-- skeleton placeholders -->
-      <div class="skel-card"><div class="skel" style="height:200px;border-radius:0;"></div><div style="padding:16px"><div class="skel" style="height:18px;width:65%;margin-bottom:10px;"></div><div class="skel" style="height:13px;width:45%;"></div></div></div>
-      <div class="skel-card"><div class="skel" style="height:200px;border-radius:0;"></div><div style="padding:16px"><div class="skel" style="height:18px;width:72%;margin-bottom:10px;"></div><div class="skel" style="height:13px;width:50%;"></div></div></div>
-      <div class="skel-card"><div class="skel" style="height:200px;border-radius:0;"></div><div style="padding:16px"><div class="skel" style="height:18px;width:58%;margin-bottom:10px;"></div><div class="skel" style="height:13px;width:42%;"></div></div></div>
+      <div class="skel-card"><div class="skel" style="height:185px;border-radius:0;"></div><div style="padding:14px"><div class="skel" style="height:17px;width:65%;margin-bottom:10px;"></div><div class="skel" style="height:12px;width:45%;"></div></div></div>
+      <div class="skel-card"><div class="skel" style="height:185px;border-radius:0;"></div><div style="padding:14px"><div class="skel" style="height:17px;width:72%;margin-bottom:10px;"></div><div class="skel" style="height:12px;width:50%;"></div></div></div>
+      <div class="skel-card"><div class="skel" style="height:185px;border-radius:0;"></div><div style="padding:14px"><div class="skel" style="height:17px;width:58%;margin-bottom:10px;"></div><div class="skel" style="height:12px;width:42%;"></div></div></div>
     </div>
   </div>
 
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     SCREEN · INGREDIENTS
+     INGRÉDIENTS
 ══════════════════════════════════════════════════════════════ -->
 <div id="screen-ingredients" class="screen">
 
@@ -562,7 +648,9 @@
         <path d="M85 54 C92 54 95 59 95 64 C95 69 92 72 85 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
       </svg>
     </button>
-    <button class="btn-back" onclick="goHome()">← Retour</button>
+    <div class="header-actions">
+      <button class="btn-back" onclick="navBack()">← Retour</button>
+    </div>
   </header>
 
   <div class="page-body">
@@ -583,7 +671,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     SCREEN · RECIPE
+     RECETTE
 ══════════════════════════════════════════════════════════════ -->
 <div id="screen-recipe" class="screen">
 
@@ -600,11 +688,13 @@
         <path d="M85 54 C92 54 95 59 95 64 C95 69 92 72 85 72" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none"/>
       </svg>
     </button>
-    <button class="btn-back" onclick="showScreen('ingredients')">← Retour</button>
+    <div class="header-actions">
+      <button class="btn-back" onclick="navBack()">← Retour</button>
+    </div>
   </header>
 
   <div class="page-body">
-    <img id="rec-img"   class="detail-img" src="" alt="" loading="lazy" />
+    <img id="rec-img" class="detail-img" src="" alt="" loading="lazy" />
     <h1 class="screen-title" id="rec-title"></h1>
 
     <div class="time-cards-row">
@@ -641,13 +731,7 @@
      JAVASCRIPT
 ══════════════════════════════════════════════════════════════ -->
 <script>
-/* ──────────────────────────────────────────────────────────────
-   FIREBASE CONFIG
-   ➜ Remplacez ces valeurs par votre configuration Firebase.
-   Console Firebase : https://console.firebase.google.com
-   1. Créez un projet → Firestore Database (mode production ou test)
-   2. Paramètres du projet → Vos applications → SDK de configuration
-────────────────────────────────────────────────────────────── */
+/* ── Firebase ──────────────────────────────────────────────── */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCoGUrQ71Qdra2useJX8tSI4nCDxJe0TgM",
   authDomain: "minutemenu-9e204.firebaseapp.com",
@@ -656,14 +740,133 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "466168015297",
   appId: "1:466168015297:web:f85b3b83fbf9356c846740"
 };
-
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.firestore();
 
-/* ──────────────────────────────────────────────────────────────
-   COOKING TIME ESTIMATES (TheMealDB n'inclut pas les durées)
-   Estimations raisonnables par catégorie
-────────────────────────────────────────────────────────────── */
+/* ── Traductions ────────────────────────────────────────────── */
+const CATEGORIES_FR = {
+  'Beef':          'Bœuf',
+  'Chicken':       'Poulet',
+  'Lamb':          'Agneau',
+  'Pork':          'Porc',
+  'Seafood':       'Fruits de mer',
+  'Vegetarian':    'Végétarien',
+  'Vegan':         'Végétalien',
+  'Pasta':         'Pâtes',
+  'Dessert':       'Dessert',
+  'Breakfast':     'Petit-déjeuner',
+  'Goat':          'Chèvre',
+  'Side':          'Accompagnement',
+  'Starter':       'Entrée',
+  'Miscellaneous': 'Divers'
+};
+
+const AREAS_FR = {
+  'American':   'Américaine',
+  'British':    'Britannique',
+  'Canadian':   'Canadienne',
+  'Chinese':    'Chinoise',
+  'Croatian':   'Croate',
+  'Dutch':      'Néerlandaise',
+  'Egyptian':   'Égyptienne',
+  'Filipino':   'Philippinoise',
+  'French':     'Française',
+  'Greek':      'Grecque',
+  'Indian':     'Indienne',
+  'Irish':      'Irlandaise',
+  'Italian':    'Italienne',
+  'Jamaican':   'Jamaïcaine',
+  'Japanese':   'Japonaise',
+  'Kenyan':     'Kényane',
+  'Malaysian':  'Malaisienne',
+  'Mexican':    'Mexicaine',
+  'Moroccan':   'Marocaine',
+  'Polish':     'Polonaise',
+  'Portuguese': 'Portugaise',
+  'Russian':    'Russe',
+  'Spanish':    'Espagnole',
+  'Thai':       'Thaïlandaise',
+  'Tunisian':   'Tunisienne',
+  'Turkish':    'Turque',
+  'Ukrainian':  'Ukrainienne',
+  'Vietnamese': 'Vietnamienne',
+  'Unknown':    'Inconnue'
+};
+
+/* Dictionnaire des ingrédients courants EN→FR */
+const ING_FR = {
+  'chicken breast':'blanc de poulet','chicken thighs':'cuisses de poulet',
+  'chicken':'poulet','beef':'bœuf','pork':'porc','lamb':'agneau',
+  'salmon':'saumon','tuna':'thon','shrimp':'crevettes','prawns':'crevettes',
+  'cod':'cabillaud','egg':'œuf','eggs':'œufs','milk':'lait',
+  'butter':'beurre','cream':'crème','cheese':'fromage',
+  'parmesan':'parmesan','mozzarella':'mozzarella','cheddar':'cheddar',
+  'flour':'farine','sugar':'sucre','brown sugar':'sucre roux',
+  'salt':'sel','pepper':'poivre','black pepper':'poivre noir',
+  'olive oil':'huile d\'olive','vegetable oil':'huile végétale',
+  'sunflower oil':'huile de tournesol','oil':'huile',
+  'onion':'oignon','onions':'oignons','garlic':'ail',
+  'tomato':'tomate','tomatoes':'tomates','tomato paste':'concentré de tomates',
+  'tomato sauce':'sauce tomate','potatoes':'pommes de terre','potato':'pomme de terre',
+  'carrots':'carottes','carrot':'carotte','celery':'céleri',
+  'spinach':'épinards','mushrooms':'champignons','mushroom':'champignon',
+  'bell pepper':'poivron','peppers':'poivrons','zucchini':'courgette',
+  'aubergine':'aubergine','eggplant':'aubergine','broccoli':'brocoli',
+  'cauliflower':'chou-fleur','cabbage':'chou','lettuce':'laitue',
+  'cucumber':'concombre','peas':'petits pois','beans':'haricots',
+  'chickpeas':'pois chiches','lentils':'lentilles',
+  'rice':'riz','pasta':'pâtes','spaghetti':'spaghetti',
+  'bread':'pain','breadcrumbs':'chapelure',
+  'lemon':'citron','lime':'citron vert','orange':'orange',
+  'apple':'pomme','banana':'banane','strawberries':'fraises',
+  'parsley':'persil','coriander':'coriandre','cilantro':'coriandre',
+  'basil':'basilic','thyme':'thym','rosemary':'romarin',
+  'oregano':'origan','bay leaves':'laurier','bay leaf':'laurier',
+  'cumin':'cumin','paprika':'paprika','turmeric':'curcuma',
+  'cinnamon':'cannelle','ginger':'gingembre','chilli':'piment',
+  'chili':'piment','cayenne pepper':'poivre de Cayenne',
+  'curry powder':'poudre de curry','soy sauce':'sauce soja',
+  'fish sauce':'sauce de poisson','oyster sauce':'sauce huître',
+  'worcestershire sauce':'sauce Worcestershire',
+  'vinegar':'vinaigre','balsamic vinegar':'vinaigre balsamique',
+  'stock':'bouillon','chicken stock':'bouillon de poulet',
+  'beef stock':'bouillon de bœuf','vegetable stock':'bouillon de légumes',
+  'water':'eau','white wine':'vin blanc','red wine':'vin rouge',
+  'honey':'miel','maple syrup':'sirop d\'érable',
+  'baking powder':'levure chimique','baking soda':'bicarbonate de soude',
+  'vanilla extract':'extrait de vanille','vanilla':'vanille',
+  'chocolate':'chocolat','cocoa powder':'cacao en poudre',
+  'nuts':'noix','almonds':'amandes','walnuts':'noix','peanuts':'cacahuètes',
+  'sesame seeds':'graines de sésame','sesame oil':'huile de sésame',
+  'spring onions':'oignons verts','scallions':'oignons verts',
+  'leek':'poireau','shallot':'échalote','shallots':'échalotes',
+  'corn':'maïs','sweetcorn':'maïs doux',
+  'coconut milk':'lait de coco','coconut':'noix de coco',
+  'yogurt':'yaourt','sour cream':'crème fraîche',
+  'mayonnaise':'mayonnaise','mustard':'moutarde',
+  'ketchup':'ketchup','tabasco':'tabasco',
+  'anchovies':'anchois','capers':'câpres','olives':'olives',
+  'bacon':'bacon','ham':'jambon','sausage':'saucisse','sausages':'saucisses',
+  'minced beef':'bœuf haché','ground beef':'bœuf haché',
+  'turkey':'dinde','duck':'canard','rabbit':'lapin',
+  'tofu':'tofu','tempeh':'tempeh',
+  'mint':'menthe','dill':'aneth','chives':'ciboulette'
+};
+
+function translateIngredient(name) {
+  const key = name.toLowerCase().trim();
+  return ING_FR[key] || name;
+}
+
+function translateCategory(cat) {
+  return CATEGORIES_FR[cat] || cat;
+}
+
+function translateArea(area) {
+  return AREAS_FR[area] || area;
+}
+
+/* ── Temps par catégorie ────────────────────────────────────── */
 const TIMES = {
   Beef:          { prep: 20, cook: 45 },
   Chicken:       { prep: 15, cook: 35 },
@@ -681,36 +884,43 @@ const TIMES = {
   Miscellaneous: { prep: 20, cook: 30 }
 };
 
-/* ──────────────────────────────────────────────────────────────
-   STATE
-────────────────────────────────────────────────────────────── */
-let currentUser  = null;   // { code, preparedMeals: [] }
-let dailyMeals   = [];     // array of processed meal objects
-let activeMeal   = null;   // meal currently viewed
+/* ── État ────────────────────────────────────────────────────── */
+let currentUser = null;
+let dailyMeals  = [];
+let activeMeal  = null;
 
-/* ──────────────────────────────────────────────────────────────
-   UTILITIES
-────────────────────────────────────────────────────────────── */
-/** Returns today's date string in Paris timezone: "YYYY-MM-DD" */
+/* ── Navigation avec historique navigateur ──────────────────── */
+const SCREENS = ['login', 'home', 'ingredients', 'recipe'];
+
+function showScreen(name, pushHistory = true) {
+  SCREENS.forEach(s =>
+    document.getElementById('screen-' + s).classList.remove('active')
+  );
+  document.getElementById('screen-' + name).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+
+  if (pushHistory) {
+    history.pushState({ screen: name }, '', '');
+  }
+}
+
+/* Bouton retour navigateur */
+window.addEventListener('popstate', (e) => {
+  const screen = e.state && e.state.screen ? e.state.screen : 'login';
+  showScreen(screen, false); // false = ne pas re-pusher dans l'history
+});
+
+/* Retour contextuel depuis les boutons "← Retour" */
+function navBack() {
+  history.back();
+}
+
+/* ── Utilitaires ────────────────────────────────────────────── */
 function parisDateKey() {
   return new Intl.DateTimeFormat('fr-CA', {
     timeZone: 'Europe/Paris',
     year: 'numeric', month: '2-digit', day: '2-digit'
   }).format(new Date());
-}
-
-/** Human-readable Paris date, e.g. "vendredi 3 janvier 2025" */
-function parisDateLabel() {
-  return new Intl.DateTimeFormat('fr-FR', {
-    timeZone: 'Europe/Paris',
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-  }).format(new Date());
-}
-
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + name).classList.add('active');
-  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 function setLoading(on) {
@@ -724,14 +934,18 @@ function showToast(msg, ms = 3000) {
   setTimeout(() => t.classList.remove('show'), ms);
 }
 
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function goHome() {
   renderMealCards(dailyMeals);
   showScreen('home');
 }
 
-/* ──────────────────────────────────────────────────────────────
-   MEAL DATA
-────────────────────────────────────────────────────────────── */
+/* ── Données repas ──────────────────────────────────────────── */
 function getTimes(category) {
   return TIMES[category] || { prep: 20, cook: 30 };
 }
@@ -741,7 +955,7 @@ function parseIngredients(raw) {
   for (let i = 1; i <= 20; i++) {
     const name    = (raw['strIngredient' + i] || '').trim();
     const measure = (raw['strMeasure'    + i] || '').trim();
-    if (name) list.push({ name, measure });
+    if (name) list.push({ name: translateIngredient(name), measure });
   }
   return list;
 }
@@ -749,18 +963,12 @@ function parseIngredients(raw) {
 function parseSteps(text) {
   if (!text || !text.trim()) return [];
   text = text.trim();
-
-  // Numbered pattern: "1. " or "1) "
   const byNumber = text.split(/\n\s*\d+[\.\)]\s+/);
   if (byNumber.length > 2) {
     return byNumber.map(s => s.trim().replace(/\n/g, ' ')).filter(s => s.length > 8);
   }
-
-  // Double newline (paragraphs)
   const byParagraph = text.split(/\n{2,}/).map(s => s.trim().replace(/\n/g, ' ')).filter(s => s.length > 8);
   if (byParagraph.length > 1) return byParagraph;
-
-  // Single newlines
   return text.split(/\n/).map(s => s.trim()).filter(s => s.length > 8);
 }
 
@@ -779,9 +987,7 @@ function processMeal(raw) {
   };
 }
 
-/* ──────────────────────────────────────────────────────────────
-   API: THEMEALDB (free, no API key required)
-────────────────────────────────────────────────────────────── */
+/* ── API TheMealDB (gratuite, sans clé) ─────────────────────── */
 const MEALDB = 'https://www.themealdb.com/api/json/v1/1/';
 
 async function fetchRandomRaw() {
@@ -790,15 +996,10 @@ async function fetchRandomRaw() {
   return data.meals[0];
 }
 
-/**
- * Fetches `count` unique meals, excluding any id in `excludeIds`.
- * Falls back gracefully if the API returns duplicates.
- */
 async function fetchUniqueMeals(count, excludeIds = []) {
   const result  = [];
   const usedIds = new Set(excludeIds.map(String));
   const maxTry  = count * 8;
-
   for (let i = 0; i < maxTry && result.length < count; i++) {
     try {
       const raw = await fetchRandomRaw();
@@ -806,14 +1007,12 @@ async function fetchUniqueMeals(count, excludeIds = []) {
         usedIds.add(raw.idMeal);
         result.push(processMeal(raw));
       }
-    } catch (_) { /* network hiccup, keep trying */ }
+    } catch (_) {}
   }
   return result;
 }
 
-/* ──────────────────────────────────────────────────────────────
-   FIRESTORE
-────────────────────────────────────────────────────────────── */
+/* ── Firestore ──────────────────────────────────────────────── */
 async function getOrCreateUser(code) {
   const ref = db.collection('users').doc(code);
   const doc = await ref.get();
@@ -830,14 +1029,11 @@ async function loadDailyMeals(userCode) {
   if (doc.exists && doc.data().date === parisDateKey()) {
     return doc.data().meals;
   }
-  return null; // date mismatch → needs regeneration
+  return null;
 }
 
 async function saveDailyMeals(userCode, meals) {
-  await db.collection('dailyMeals').doc(userCode).set({
-    date: parisDateKey(),
-    meals
-  });
+  await db.collection('dailyMeals').doc(userCode).set({ date: parisDateKey(), meals });
 }
 
 async function persistPrepared(userCode, mealId) {
@@ -848,16 +1044,13 @@ async function persistPrepared(userCode, mealId) {
   currentUser.preparedMeals.push(mealId);
 }
 
-/* ──────────────────────────────────────────────────────────────
-   LOGIN
-────────────────────────────────────────────────────────────── */
+/* ── Connexion ──────────────────────────────────────────────── */
 async function handleLogin() {
   const input = document.getElementById('code-input');
   const code  = input.value.trim().toUpperCase();
   const err   = document.getElementById('login-error');
 
   err.style.display = 'none';
-
   if (code.length < 3) {
     err.textContent = 'Le code doit contenir au moins 3 caractères.';
     err.style.display = 'block';
@@ -882,45 +1075,66 @@ document.getElementById('code-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') handleLogin();
 });
 
-/* ──────────────────────────────────────────────────────────────
-   HOME SCREEN
-────────────────────────────────────────────────────────────── */
+/* ── Déconnexion ────────────────────────────────────────────── */
+function handleLogout() {
+  localStorage.removeItem('mm_user');
+  currentUser = null;
+  dailyMeals  = [];
+  activeMeal  = null;
+  document.getElementById('code-input').value = '';
+  showScreen('login');
+}
+
+/* ── Écran d'accueil ────────────────────────────────────────── */
 async function initHome() {
   showScreen('home');
-
-  const label = parisDateLabel();
-  document.getElementById('date-chip').innerHTML =
-    '📅 ' + label.charAt(0).toUpperCase() + label.slice(1) + ' &nbsp;·&nbsp; Renouvellement à minuit';
-
-  // Show skeletons while loading
   showSkeletons();
 
   try {
     let meals = await loadDailyMeals(currentUser.code);
-
     if (!meals) {
-      const prepared = (currentUser.preparedMeals || []);
-      meals = await fetchUniqueMeals(3, prepared);
+      meals = await fetchUniqueMeals(3, currentUser.preparedMeals || []);
       await saveDailyMeals(currentUser.code, meals);
     }
-
     dailyMeals = meals;
     renderMealCards(meals);
-
   } catch (e) {
     console.error(e);
     document.getElementById('meals-grid').innerHTML =
-      '<div class="empty-state"><div class="big-icon">⚠️</div><h3>Erreur de chargement</h3><p>Impossible de récupérer les recettes.<br>Vérifiez votre connexion et rechargez.</p></div>';
+      '<div class="empty-state"><div class="big-icon">⚠️</div><h3>Erreur de chargement</h3><p>Impossible de récupérer les recettes.<br>Vérifiez votre connexion et réessayez.</p></div>';
+  }
+}
+
+/* ── Actualiser les repas ───────────────────────────────────── */
+async function refreshMeals() {
+  const btn = document.getElementById('btn-refresh');
+  btn.classList.add('spinning');
+  btn.disabled = true;
+
+  showSkeletons();
+  try {
+    const prepared = (currentUser.preparedMeals || []);
+    const meals = await fetchUniqueMeals(3, prepared);
+    dailyMeals = meals;
+    await saveDailyMeals(currentUser.code, meals);
+    renderMealCards(meals);
+  } catch (e) {
+    console.error(e);
+    showToast('Erreur lors de l\'actualisation.');
+    renderMealCards(dailyMeals);
+  } finally {
+    btn.classList.remove('spinning');
+    btn.disabled = false;
   }
 }
 
 function showSkeletons() {
   document.getElementById('meals-grid').innerHTML = [1,2,3].map(() => `
     <div class="skel-card">
-      <div class="skel" style="height:200px;border-radius:0;"></div>
-      <div style="padding:16px">
-        <div class="skel" style="height:18px;width:65%;margin-bottom:10px;"></div>
-        <div class="skel" style="height:13px;width:46%;"></div>
+      <div class="skel" style="height:185px;border-radius:0;"></div>
+      <div style="padding:14px">
+        <div class="skel" style="height:17px;width:65%;margin-bottom:10px;"></div>
+        <div class="skel" style="height:12px;width:46%;"></div>
       </div>
     </div>`).join('');
 }
@@ -936,11 +1150,10 @@ function renderMealCards(meals) {
       </div>`;
     return;
   }
-
   grid.innerHTML = meals.map(m => `
     <div class="meal-card" onclick="openMeal('${m.id}')">
       <img class="meal-card-img" src="${escHtml(m.image)}" alt="${escHtml(m.name)}"
-           onerror="this.style.background='#FFF0E8';this.style.display='flex';this.style.alignItems='center';this.style.justifyContent='center';this.alt='🍽️';"
+           onerror="this.src='';this.style.minHeight='80px';this.style.background='#FFF0E8';"
            loading="lazy" />
       <div class="meal-card-body">
         <div class="meal-card-name">${escHtml(m.name)}</div>
@@ -952,15 +1165,7 @@ function renderMealCards(meals) {
     </div>`).join('');
 }
 
-function escHtml(s) {
-  return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-/* ──────────────────────────────────────────────────────────────
-   INGREDIENTS SCREEN
-────────────────────────────────────────────────────────────── */
+/* ── Écran Ingrédients ──────────────────────────────────────── */
 function openMeal(mealId) {
   activeMeal = dailyMeals.find(m => m.id === mealId);
   if (!activeMeal) return;
@@ -968,8 +1173,15 @@ function openMeal(mealId) {
   document.getElementById('ing-img').src   = activeMeal.image;
   document.getElementById('ing-img').alt   = activeMeal.name;
   document.getElementById('ing-title').textContent = activeMeal.name;
-  document.getElementById('ing-sub').textContent   =
-    `⏱️ ${activeMeal.prepTime} min prép.  ·  🔥 ${activeMeal.cookTime} min cuisson  ·  ${activeMeal.category}`;
+
+  const catFr  = translateCategory(activeMeal.category);
+  const areaFr = translateArea(activeMeal.area);
+  const parts  = [];
+  if (activeMeal.prepTime) parts.push(`⏱️ ${activeMeal.prepTime} min prép.`);
+  if (activeMeal.cookTime) parts.push(`🔥 ${activeMeal.cookTime} min cuisson`);
+  if (catFr)  parts.push(catFr);
+  if (areaFr) parts.push(`Cuisine ${areaFr}`);
+  document.getElementById('ing-sub').textContent = parts.join('  ·  ');
 
   document.getElementById('ing-list').innerHTML = activeMeal.ingredients.map(ing => `
     <li class="ing-item">
@@ -981,9 +1193,7 @@ function openMeal(mealId) {
   showScreen('ingredients');
 }
 
-/* ──────────────────────────────────────────────────────────────
-   RECIPE SCREEN
-────────────────────────────────────────────────────────────── */
+/* ── Écran Recette ──────────────────────────────────────────── */
 function showRecipe() {
   if (!activeMeal) return;
 
@@ -1001,7 +1211,7 @@ function showRecipe() {
           <div class="step-num">${i + 1}</div>
           <div class="step-text">${escHtml(s)}</div>
         </div>`).join('')
-    : '<p style="color:var(--gray);font-style:italic;font-size:14px;">Instructions non disponibles pour ce plat.</p>';
+    : '<p style="color:var(--gray);font-style:italic;font-size:13.5px;">Instructions non disponibles pour ce plat.</p>';
 
   const done = (currentUser.preparedMeals || []).includes(activeMeal.id);
   const btn  = document.getElementById('btn-prepared');
@@ -1011,9 +1221,7 @@ function showRecipe() {
   showScreen('recipe');
 }
 
-/* ──────────────────────────────────────────────────────────────
-   MARK AS PREPARED
-────────────────────────────────────────────────────────────── */
+/* ── Marquer comme préparé ──────────────────────────────────── */
 async function markPrepared() {
   if (!activeMeal || !currentUser) return;
 
@@ -1022,17 +1230,13 @@ async function markPrepared() {
   btn.textContent = '⏳ Enregistrement…';
 
   try {
-    // 1 — Persist in Firestore
     await persistPrepared(currentUser.code, activeMeal.id);
 
-    // 2 — Remove this meal from today's list; fetch a replacement
-    const remaining    = dailyMeals.filter(m => m.id !== activeMeal.id);
-    const allExclude   = (currentUser.preparedMeals || []).concat(dailyMeals.map(m => m.id));
-    const replacements = await fetchUniqueMeals(1, allExclude);
+    const remaining  = dailyMeals.filter(m => m.id !== activeMeal.id);
+    const allExclude = (currentUser.preparedMeals || []).concat(dailyMeals.map(m => m.id));
+    const remplacement = await fetchUniqueMeals(1, allExclude);
 
-    dailyMeals = remaining.concat(replacements);
-
-    // 3 — Persist updated daily list
+    dailyMeals = remaining.concat(remplacement);
     await saveDailyMeals(currentUser.code, dailyMeals);
 
     btn.textContent = '✅ Bon appétit !';
@@ -1051,12 +1255,13 @@ async function markPrepared() {
   }
 }
 
-/* ──────────────────────────────────────────────────────────────
-   AUTO-LOGIN on reload
-────────────────────────────────────────────────────────────── */
+/* ── Connexion automatique au rechargement ──────────────────── */
 (async function boot() {
+  // Initialiser l'historique sur l'état login
+  history.replaceState({ screen: 'login' }, '', '');
+
   const saved = localStorage.getItem('mm_user');
-  if (!saved) return; // stay on login
+  if (!saved) return;
 
   setLoading(true);
   try {
@@ -1065,7 +1270,7 @@ async function markPrepared() {
     await initHome();
   } catch (e) {
     setLoading(false);
-    console.warn('Auto-login failed:', e);
+    console.warn('Connexion automatique échouée :', e);
   }
 })();
 </script>
