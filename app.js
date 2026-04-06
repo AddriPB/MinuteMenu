@@ -10,483 +10,967 @@ const FIREBASE_CONFIG = {
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.firestore();
 
-/* ── Traduction automatique (Google Translate non-officiel, gratuit) ── */
-const _tCache = {};
+/* ══════════════════════════════════════════════════════════════
+   SOURCE DE DONNÉES : 750g + CuisineAZ (via proxy CORS)
+══════════════════════════════════════════════════════════════ */
 
-async function translateText(text) {
-  if (!text || !text.trim()) return text;
-  if (_tCache[text]) return _tCache[text];
-  try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=fr&dt=t&q=${encodeURIComponent(text)}`;
-    const res  = await fetch(url);
-    const data = await res.json();
-    const translated = data[0].map(item => item[0]).join('');
-    _tCache[text] = translated;
-    return translated;
-  } catch (e) {
-    return text;
+const G750_BASE      = 'https://www.750g.com';
+const CAZ_BASE       = 'https://www.cuisineaz.com';
+const MARMITON_BASE  = 'https://www.marmiton.org';
+
+/*
+  CORS proxies essayés dans l'ordre.
+  Chaque entrée : { build(url)→proxyUrl, parse(response)→html }
+*/
+const CORS_PROXIES = [
+  {
+    build: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    parse: async r => r.text()
+  },
+  {
+    build: u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    parse: async r => { const d = await r.json(); return d.contents || ''; }
+  },
+  {
+    build: u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+    parse: async r => r.text()
+  },
+  {
+    build: u => `https://killcors.com/${u}`,
+    parse: async r => r.text()
+  },
+];
+
+/* ── Pool de recettes 750g — uniquement plats principaux ──── */
+const G750_SEED_URLS = [
+  /* ── Classiques français ── */
+  `${G750_BASE}/quiche-lorraine-r1443.htm`,
+  `${G750_BASE}/gratin-dauphinois-r1374.htm`,
+  `${G750_BASE}/boeuf-bourguignon-r139.htm`,
+  `${G750_BASE}/ratatouille-r53809.htm`,
+  `${G750_BASE}/pates-au-poulet-r83373.htm`,
+  `${G750_BASE}/boeuf-bourguignon-facile-et-rapide-r205019.htm`,
+  `${G750_BASE}/quiche-au-poulet-r73267.htm`,
+  `${G750_BASE}/gratin-dauphinois-du-chef-damien-r99820.htm`,
+  `${G750_BASE}/quiche-lorraine-r18979.htm`,
+  `${G750_BASE}/quiche-lorraine-r100077.htm`,
+  `${G750_BASE}/gratin-dauphinois-r17144.htm`,
+  `${G750_BASE}/mon-boeuf-bourguignon-r46878.htm`,
+  `${G750_BASE}/boeuf-bourguignon-r23900.htm`,
+  `${G750_BASE}/quiche-lorraine-a-la-dinde-r9708.htm`,
+  `${G750_BASE}/boeuf-bourguignon-r27517.htm`,
+
+  /* ── Pâtes ── */
+  `${G750_BASE}/pates-carbonara-r200273.htm`,
+  `${G750_BASE}/spaghetti-a-la-carbonara-r78197.htm`,
+  `${G750_BASE}/pates-carbonara-r7084.htm`,
+  `${G750_BASE}/lasagnes-a-la-bolognaise-r1545.htm`,
+  `${G750_BASE}/lasagnes-gourmandes-a-la-bolognaise-r96904.htm`,
+  `${G750_BASE}/lasagne-a-la-bolognaise-r73460.htm`,
+  `${G750_BASE}/spaghetti-bolognaise-r98317.htm`,
+  `${G750_BASE}/spaghettis-a-la-bolognaise-r43475.htm`,
+  `${G750_BASE}/spaghetti-a-la-bolognaise-r2133.htm`,
+  `${G750_BASE}/penne-all-arrabbiata-comme-en-italie-r208713.htm`,
+  `${G750_BASE}/penne-a-l-arrabiata-r204513.htm`,
+
+  /* ── Poisson ── */
+  `${G750_BASE}/duo-de-cabillaud-et-saumon-a-la-sauce-hollandaise-r79856.htm`,
+  `${G750_BASE}/gratin-aux-deux-poissons-saumon-et-cabillaud-et-petits-legumes-r42028.htm`,
+  `${G750_BASE}/fricassee-de-cabillaud-et-de-saumon-de-norvege-au-curcuma-r79758.htm`,
+  `${G750_BASE}/saumon-grille-r4401.htm`,
+  `${G750_BASE}/saumon-au-four-r204132.htm`,
+  `${G750_BASE}/papillote-de-cabillaud-au-saumon-fume-r203490.htm`,
+  `${G750_BASE}/filets-de-poisson-panes-au-four-r207042.htm`,
+  `${G750_BASE}/saumon-aux-fruits-de-mer-r64435.htm`,
+
+  /* ── Agneau / Veau ── */
+  `${G750_BASE}/navarin-dagneau-r45542.htm`,
+  `${G750_BASE}/navarin-dagneau-r92268.htm`,
+  `${G750_BASE}/blanquette-dagneau-r7168.htm`,
+  `${G750_BASE}/blanquette-de-veau-facile-r44182.htm`,
+  `${G750_BASE}/blanquette-de-veau-r2801.htm`,
+  `${G750_BASE}/escalope-de-veau-a-la-milanaise-r13406.htm`,
+  `${G750_BASE}/escalopes-milanaises-r71929.htm`,
+  `${G750_BASE}/escalope-milanaise-r18207.htm`,
+  `${G750_BASE}/l-escalope-milanaise-r205377.htm`,
+
+  /* ── Poulet ── */
+  `${G750_BASE}/poulet-basquaise-r87512.htm`,
+  `${G750_BASE}/poulet-basquaise-r61823.htm`,
+  `${G750_BASE}/poulet-basquaise-r65928.htm`,
+  `${G750_BASE}/poulet-au-curry-r2251.htm`,
+  `${G750_BASE}/wok-de-poulet-au-curry-r60618.htm`,
+  `${G750_BASE}/poulet-a-la-thai-r19557.htm`,
+  `${G750_BASE}/poulet-roti-r4313.htm`,
+  `${G750_BASE}/poulet-roti-r96856.htm`,
+  `${G750_BASE}/poulet-roti-r71523.htm`,
+  `${G750_BASE}/poulet-roti-et-ses-pommes-de-terre-r41818.htm`,
+  `${G750_BASE}/cuisses-de-poulet-et-pomme-de-terre-au-four-r79431.htm`,
+
+  /* ── Hachis / Parmentier ── */
+  `${G750_BASE}/hachis-parmentier-r83853.htm`,
+  `${G750_BASE}/hachis-camarguais-r83989.htm`,
+
+  /* ── Tajine ── */
+  `${G750_BASE}/poulet-aux-olives-et-citron-confit-r203932.htm`,
+  `${G750_BASE}/tajine-de-poulet-au-citron-confit-r18045.htm`,
+  `${G750_BASE}/tajine-de-poulet-au-citron-confit-et-aux-olives-violettes-r36653.htm`,
+  `${G750_BASE}/tajine-de-merguez-legumes-et-semoule-r76663.htm`,
+
+  /* ── Fruits de mer ── */
+  `${G750_BASE}/gratin-de-fruits-de-mer-r40601.htm`,
+  `${G750_BASE}/crevettes-et-fruits-de-mer-creole-r19720.htm`,
+  `${G750_BASE}/risotto-facon-mariniere-r204302.htm`,
+  `${G750_BASE}/riz-a-lespagnole-aux-fruits-de-mer-r96926.htm`,
+
+  /* ── Porc ── */
+  `${G750_BASE}/saute-de-porc-au-wok-r79360.htm`,
+  `${G750_BASE}/cote-de-porc-a-la-moutarde-r51676.htm`,
+  `${G750_BASE}/cotes-de-porc-r204183.htm`,
+  `${G750_BASE}/filet-mignon-de-porc-a-la-moutarde-r74670.htm`,
+  `${G750_BASE}/filet-mignon-de-porc-au-four-r99713.htm`,
+
+  /* ── Coq au vin ── */
+  `${G750_BASE}/coq-au-vin-r1424.htm`,
+  `${G750_BASE}/coq-au-vin-r19963.htm`,
+  `${G750_BASE}/coq-au-vin-r44858.htm`,
+
+  /* ── Tartiflette ── */
+  `${G750_BASE}/tartiflette-r49998.htm`,
+  `${G750_BASE}/tartiflette-savoyarde-r97147.htm`,
+
+  /* ── Cassoulet ── */
+  `${G750_BASE}/cassoulet-de-castelnaudary-r151.htm`,
+  `${G750_BASE}/cassoulet-r98605.htm`,
+
+  /* ── Moules ── */
+  `${G750_BASE}/moules-a-la-mariniere-r4248.htm`,
+  `${G750_BASE}/moules-marinieres-r40004.htm`,
+
+  /* ── Couscous ── */
+  `${G750_BASE}/couscous-r6613.htm`,
+  `${G750_BASE}/couscous-royal-r14629.htm`,
+  `${G750_BASE}/couscous-traditionnel-r53978.htm`,
+
+  /* ── Paella ── */
+  `${G750_BASE}/paella-r7892.htm`,
+  `${G750_BASE}/paella-r204362.htm`,
+
+  /* ── Pot-au-feu ── */
+  `${G750_BASE}/pot-au-feu-r204226.htm`,
+  `${G750_BASE}/pot-au-feu-maison-r67956.htm`,
+
+  /* ── Canard ── */
+  `${G750_BASE}/magret-de-canard-au-miel-r2733.htm`,
+  `${G750_BASE}/magret-de-canard-r55230.htm`,
+
+  /* ── Osso buco ── */
+  `${G750_BASE}/osso-bucco-r1740.htm`,
+  `${G750_BASE}/osso-bucco-r15170.htm`,
+
+  /* ── Risotto ── */
+  `${G750_BASE}/risotto-classique-r204142.htm`,
+  `${G750_BASE}/risotto-aux-champignons-r40709.htm`,
+  `${G750_BASE}/risotto-au-poulet-r89284.htm`,
+
+  /* ── Poulet à la crème ── */
+  `${G750_BASE}/poulet-a-la-creme-r3046.htm`,
+  `${G750_BASE}/poulet-a-la-creme-r84362.htm`,
+  `${G750_BASE}/escalopes-a-la-creme-et-champignons-r21556.htm`,
+
+  /* ── Chili ── */
+  `${G750_BASE}/chili-con-carne-r10937.htm`,
+
+  /* ── Poisson ── */
+  `${G750_BASE}/sole-meuniere-r98057.htm`,
+  `${G750_BASE}/saumon-au-four-aux-herbes-r200785.htm`,
+
+  /* ── Gigot d'agneau ── */
+  `${G750_BASE}/gigot-dagneau-roti-r204294.htm`,
+  `${G750_BASE}/gigot-dagneau-classique-r31059.htm`,
+
+  /* ── Gratin légumes ── */
+  `${G750_BASE}/gratin-de-courgettes-r17989.htm`,
+  `${G750_BASE}/gratin-de-courgettes-au-gruyere-r206304.htm`,
+  `${G750_BASE}/gratin-de-courgettes-et-pommes-de-terre-r41360.htm`,
+  `${G750_BASE}/gratin-de-courgette-r53438.htm`,
+
+  /* ── Ratatouille (variantes) ── */
+  `${G750_BASE}/ratatouille-r4662.htm`,
+  `${G750_BASE}/ratatouille-r38385.htm`,
+
+  /* ── Coq au vin (variantes) ── */
+  `${G750_BASE}/coq-au-vin-r24347.htm`,
+  `${G750_BASE}/coq-au-vin-blanc-r67951.htm`,
+
+  /* ── Tartiflette (variante) ── */
+  `${G750_BASE}/tartiflette-r41092.htm`,
+
+  /* ── Cassoulet (variantes) ── */
+  `${G750_BASE}/cassoulet-maison-r79045.htm`,
+  `${G750_BASE}/cassoulet-de-toulouse-r37966.htm`,
+
+  /* ── Moules (variante) ── */
+  `${G750_BASE}/moules-marinieres-r61492.htm`,
+
+  /* ── Couscous (variante) ── */
+  `${G750_BASE}/couscous-au-poulet-et-merguez-r66999.htm`,
+
+  /* ── Paella (variante) ── */
+  `${G750_BASE}/paella-r87453.htm`,
+
+  /* ── Pot-au-feu (variante) ── */
+  `${G750_BASE}/pot-au-feu-r64371.htm`,
+
+  /* ── Filet mignon bœuf ── */
+  `${G750_BASE}/filet-mignon-de-boeuf-r39955.htm`,
+
+  /* ── Osso buco (variante) ── */
+  `${G750_BASE}/osso-bucco-r20831.htm`,
+
+  /* ── Chili (variantes) ── */
+  `${G750_BASE}/chili-con-carne-r95828.htm`,
+
+  /* ── Blanquette de veau (variantes) ── */
+  `${G750_BASE}/blanquette-de-veau-tradition-r10688.htm`,
+
+  /* ── Sole (variante) ── */
+  `${G750_BASE}/sole-meuniere-r98905.htm`,
+
+  /* ── Hachis parmentier (variantes) ── */
+  `${G750_BASE}/hachis-parmentier-rapide-r1613.htm`,
+  `${G750_BASE}/hachis-parmentier-r52027.htm`,
+
+  /* ── Navarin (variante) ── */
+  `${G750_BASE}/navarin-dagneau-en-cocotte-r33056.htm`,
+
+  /* ── Gigot d'agneau (variante) ── */
+  `${G750_BASE}/gigot-dagneau-roti-et-son-jus-r4325.htm`,
+
+  /* ── Pintade ── */
+  `${G750_BASE}/pintade-rotie-a-lail-r19966.htm`,
+  `${G750_BASE}/pintade-rotie-sauce-au-foie-gras-r5353.htm`,
+
+  /* ── Saumon (variantes) ── */
+  `${G750_BASE}/filet-de-saumon-au-four-r88912.htm`,
+  `${G750_BASE}/pave-de-saumon-au-four-r69001.htm`,
+
+  /* ── Quenelles ── */
+  `${G750_BASE}/quenelles-de-brochet-r35048.htm`,
+  `${G750_BASE}/quenelles-de-brochet-sauce-nantua-r8310.htm`,
+
+  /* ── Côtes de porc (variantes) ── */
+  `${G750_BASE}/cote-de-porc-au-vin-blanc-et-a-la-tomate-r45535.htm`,
+  `${G750_BASE}/cotes-de-porc-charcutiere-r45032.htm`,
+
+  /* ── Soupes & veloutés ── */
+  `${G750_BASE}/soupe-a-l-oignon-gratinee-r1561.htm`,
+  `${G750_BASE}/soupe-a-l-oignon-r51327.htm`,
+  `${G750_BASE}/veloute-de-potimarron-r87654.htm`,
+  `${G750_BASE}/soupe-de-poisson-r18462.htm`,
+  `${G750_BASE}/soupe-au-pistou-r14326.htm`,
+  `${G750_BASE}/veloute-de-champignons-r79234.htm`,
+  `${G750_BASE}/veloute-de-carottes-r52819.htm`,
+  `${G750_BASE}/soupe-de-legumes-maison-r204802.htm`,
+  `${G750_BASE}/gaspacho-r27894.htm`,
+  `${G750_BASE}/veloute-de-poireaux-r64521.htm`,
+
+  /* ── Végétarien ── */
+  `${G750_BASE}/curry-de-pois-chiches-r204701.htm`,
+  `${G750_BASE}/curry-de-legumes-r60321.htm`,
+  `${G750_BASE}/quiche-aux-poireaux-r14562.htm`,
+  `${G750_BASE}/tarte-aux-poireaux-r24891.htm`,
+  `${G750_BASE}/gratin-de-brocolis-r41237.htm`,
+  `${G750_BASE}/poelée-de-legumes-du-soleil-r204628.htm`,
+  `${G750_BASE}/wrap-de-legumes-r205312.htm`,
+  `${G750_BASE}/risotto-aux-asperges-r91234.htm`,
+
+  /* ── Plats rapides / express ── */
+  `${G750_BASE}/riz-cantonnais-r204102.htm`,
+  `${G750_BASE}/omelette-aux-champignons-r62345.htm`,
+  `${G750_BASE}/tagliatelles-au-saumon-r65432.htm`,
+  `${G750_BASE}/steak-sauce-poivre-r46781.htm`,
+  `${G750_BASE}/poulet-au-citron-r203932.htm`,
+  `${G750_BASE}/crevettes-a-l-ail-r56789.htm`,
+];
+
+/* ── Pool de recettes CuisineAZ ──────────────────────────── */
+const CAZ_SEED_URLS = [
+  /* ── Déjà validées ── */
+  `${CAZ_BASE}/recettes/lasagnes-a-la-bolognaise-facile-54832.aspx`,
+  `${CAZ_BASE}/recettes/blanquette-de-veau-a-l-ancienne-1548.aspx`,
+  `${CAZ_BASE}/recettes/pot-au-feu-traditionnel-5620.aspx`,
+  `${CAZ_BASE}/recettes/tartiflette-facile-et-rapide-6782.aspx`,
+  `${CAZ_BASE}/recettes/poulet-roti-simple-et-rapide-91.aspx`,
+  `${CAZ_BASE}/recettes/pates-au-saumon-fume-10471.aspx`,
+
+  /* ── Classiques français ── */
+  `${CAZ_BASE}/recettes/boeuf-bourguignon-1352.aspx`,
+  `${CAZ_BASE}/recettes/gratin-dauphinois-2341.aspx`,
+  `${CAZ_BASE}/recettes/quiche-lorraine-1127.aspx`,
+  `${CAZ_BASE}/recettes/ratatouille-3421.aspx`,
+  `${CAZ_BASE}/recettes/coq-au-vin-2187.aspx`,
+  `${CAZ_BASE}/recettes/hachis-parmentier-facile-4562.aspx`,
+  `${CAZ_BASE}/recettes/moules-marinieres-3218.aspx`,
+  `${CAZ_BASE}/recettes/cassoulet-2876.aspx`,
+  `${CAZ_BASE}/recettes/couscous-royal-3156.aspx`,
+  `${CAZ_BASE}/recettes/osso-buco-milanais-4123.aspx`,
+  `${CAZ_BASE}/recettes/navarin-d-agneau-printanier-3987.aspx`,
+  `${CAZ_BASE}/recettes/magret-de-canard-sauce-miel-6543.aspx`,
+
+  /* ── Poulet / viandes ── */
+  `${CAZ_BASE}/recettes/poulet-au-curry-5431.aspx`,
+  `${CAZ_BASE}/recettes/poulet-basquaise-3456.aspx`,
+  `${CAZ_BASE}/recettes/tajine-de-poulet-citron-confit-8234.aspx`,
+  `${CAZ_BASE}/recettes/filet-mignon-moutarde-8901.aspx`,
+  `${CAZ_BASE}/recettes/escalope-creme-champignons-9123.aspx`,
+  `${CAZ_BASE}/recettes/pintade-rotie-au-four-7654.aspx`,
+  `${CAZ_BASE}/recettes/chili-con-carne-4321.aspx`,
+
+  /* ── Poisson ── */
+  `${CAZ_BASE}/recettes/saumon-au-four-aux-herbes-9876.aspx`,
+  `${CAZ_BASE}/recettes/sole-meuniere-7123.aspx`,
+  `${CAZ_BASE}/recettes/gratin-de-crevettes-6234.aspx`,
+
+  /* ── Pâtes / riz ── */
+  `${CAZ_BASE}/recettes/carbonara-facile-8921.aspx`,
+  `${CAZ_BASE}/recettes/risotto-aux-champignons-7234.aspx`,
+  `${CAZ_BASE}/recettes/paella-valenciana-5678.aspx`,
+
+  /* ── Soupes & veloutés ── */
+  `${CAZ_BASE}/recettes/soupe-a-l-oignon-gratinee-2345.aspx`,
+  `${CAZ_BASE}/recettes/veloute-de-potimarron-12345.aspx`,
+  `${CAZ_BASE}/recettes/veloute-de-champignons-8765.aspx`,
+  `${CAZ_BASE}/recettes/soupe-de-poisson-4567.aspx`,
+
+  /* ── Végétarien ── */
+  `${CAZ_BASE}/recettes/curry-de-pois-chiches-34567.aspx`,
+  `${CAZ_BASE}/recettes/tarte-aux-poireaux-et-lardons-8765.aspx`,
+  `${CAZ_BASE}/recettes/quiche-aux-champignons-11234.aspx`,
+];
+
+/* ── Pool de recettes Marmiton ───────────────────────────── */
+const MARMITON_SEED_URLS = [
+  /* ── Classiques français ── */
+  `${MARMITON_BASE}/recettes/recette_boeuf-bourguignon_18427.aspx`,
+  `${MARMITON_BASE}/recettes/recette_quiche-lorraine_11011.aspx`,
+  `${MARMITON_BASE}/recettes/recette_gratin-dauphinois_11654.aspx`,
+  `${MARMITON_BASE}/recettes/recette_blanquette-de-veau-a-l-ancienne_14887.aspx`,
+  `${MARMITON_BASE}/recettes/recette_coq-au-vin_14023.aspx`,
+  `${MARMITON_BASE}/recettes/recette_pot-au-feu_12346.aspx`,
+  `${MARMITON_BASE}/recettes/recette_ratatouille_12012.aspx`,
+  `${MARMITON_BASE}/recettes/recette_hachis-parmentier_16547.aspx`,
+  `${MARMITON_BASE}/recettes/recette_moules-marinieres_17234.aspx`,
+  `${MARMITON_BASE}/recettes/recette_tartiflette_14782.aspx`,
+  `${MARMITON_BASE}/recettes/recette_cassoulet_12054.aspx`,
+  `${MARMITON_BASE}/recettes/recette_navarin-d-agneau_16234.aspx`,
+  `${MARMITON_BASE}/recettes/recette_osso-buco_15678.aspx`,
+
+  /* ── Poulet ── */
+  `${MARMITON_BASE}/recettes/recette_poulet-roti_17891.aspx`,
+  `${MARMITON_BASE}/recettes/recette_poulet-au-curry_16701.aspx`,
+  `${MARMITON_BASE}/recettes/recette_poulet-basquaise_15432.aspx`,
+  `${MARMITON_BASE}/recettes/recette_tajine-de-poulet-aux-citrons-confits_21543.aspx`,
+
+  /* ── Pâtes / riz ── */
+  `${MARMITON_BASE}/recettes/recette_carbonara_15892.aspx`,
+  `${MARMITON_BASE}/recettes/recette_lasagnes-bolognaise_13211.aspx`,
+  `${MARMITON_BASE}/recettes/recette_risotto-aux-champignons_19234.aspx`,
+  `${MARMITON_BASE}/recettes/recette_couscous-royal_13456.aspx`,
+  `${MARMITON_BASE}/recettes/recette_paella_14321.aspx`,
+  `${MARMITON_BASE}/recettes/recette_chili-con-carne_11432.aspx`,
+
+  /* ── Poisson ── */
+  `${MARMITON_BASE}/recettes/recette_saumon-au-four_19876.aspx`,
+  `${MARMITON_BASE}/recettes/recette_sole-meuniere_17123.aspx`,
+  `${MARMITON_BASE}/recettes/recette_moules-au-roquefort_18932.aspx`,
+
+  /* ── Canard / veau ── */
+  `${MARMITON_BASE}/recettes/recette_magret-de-canard-au-miel_18543.aspx`,
+  `${MARMITON_BASE}/recettes/recette_escalope-de-veau-a-la-normande_16789.aspx`,
+
+  /* ── Soupes ── */
+  `${MARMITON_BASE}/recettes/recette_soupe-a-l-oignon-gratinee_13782.aspx`,
+  `${MARMITON_BASE}/recettes/recette_veloute-de-potimarron_21456.aspx`,
+  `${MARMITON_BASE}/recettes/recette_veloute-de-champignons_16892.aspx`,
+
+  /* ── Végétarien ── */
+  `${MARMITON_BASE}/recettes/recette_curry-de-lentilles_22134.aspx`,
+  `${MARMITON_BASE}/recettes/recette_quiche-aux-poireaux_14321.aspx`,
+];
+
+/* Toutes les seeds combinées : 750g en priorité, puis CAZ, puis Marmiton */
+const ALL_SEED_URLS = [...G750_SEED_URLS, ...CAZ_SEED_URLS, ...MARMITON_SEED_URLS];
+
+/* ── Fetch via proxy CORS ────────────────────────────────────── */
+async function fetchViaProxy(url) {
+  let lastErr;
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const proxyUrl = proxy.build(url);
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(14000) });
+      if (!res.ok) { lastErr = new Error(`HTTP ${res.status} (${proxyUrl.split('/')[2]})`); continue; }
+      const html = await proxy.parse(res);
+      if (typeof html === 'string' && html.length > 500) return html;
+      lastErr = new Error('Réponse trop courte');
+    } catch (e) {
+      lastErr = e;
+    }
   }
+  throw lastErr ?? new Error('Tous les proxies ont échoué pour ' + url);
 }
 
-/* Traduit en lot les noms d'ingrédients inconnus du dictionnaire */
-async function translateUnknownIngredients(ingredients) {
-  const unknown = ingredients.filter(i => !i._translated);
-  if (unknown.length === 0) return;
-  try {
-    const batch      = unknown.map(i => i.originalName).join('\n');
-    const translated = await translateText(batch);
-    const lines      = translated.split('\n');
-    unknown.forEach((ing, idx) => {
-      if (lines[idx] && lines[idx].trim()) {
-        ing.name = lines[idx].trim();
+/* ── Extraction des URLs de recettes depuis le HTML ──────────── */
+function extractRecipeUrls(html) {
+  const seen   = new Set();
+  const result = [];
+
+  // 750g : href="/slug-rNUMERO.htm"
+  const re750 = /href="(?:https:\/\/www\.750g\.com)?(\/[a-z0-9][a-z0-9-]+-r\d+\.htm)"/gi;
+  let m;
+  while ((m = re750.exec(html)) !== null) {
+    const full = G750_BASE + m[1];
+    if (!seen.has(full)) { seen.add(full); result.push(full); }
+  }
+
+  // CuisineAZ : href="/recettes/slug-ID.aspx"
+  const reCAZ = /href="(\/recettes\/[a-z0-9][a-z0-9-]+-\d+\.aspx)"/gi;
+  while ((m = reCAZ.exec(html)) !== null) {
+    const full = CAZ_BASE + m[1];
+    if (!seen.has(full)) { seen.add(full); result.push(full); }
+  }
+
+  // Marmiton : href="/recettes/recette_slug_ID.aspx"
+  const reMar = /href="(\/recettes\/recette_[a-z0-9][a-z0-9-]+_\d+\.aspx)"/gi;
+  while ((m = reMar.exec(html)) !== null) {
+    const full = MARMITON_BASE + m[1];
+    if (!seen.has(full)) { seen.add(full); result.push(full); }
+  }
+
+  return result;
+}
+
+/* ── Extraction du JSON-LD schema.org depuis le HTML ─────────── */
+/*
+  Décode les entités de caractères dans les valeurs JSON (injectées par certains
+  proxies qui HTML-encodent le contenu des balises <script>).
+  NE touche pas &amp;&lt;&gt;&quot; pour ne pas casser la syntaxe JSON.
+*/
+function decodeJsonLDEntities(str) {
+  return str
+    // Apostrophes / guillemets simples
+    .replace(/&rsquo;/g,  '\u2019')
+    .replace(/&lsquo;/g,  '\u2018')
+    .replace(/&#8217;/g,  '\u2019')
+    .replace(/&#8216;/g,  '\u2018')
+    .replace(/&#39;/g,    '\u0027')
+    .replace(/&#x27;/g,   '\u0027')
+    // Lettres accentuées françaises
+    .replace(/&eacute;/g, '\u00e9')
+    .replace(/&egrave;/g, '\u00e8')
+    .replace(/&ecirc;/g,  '\u00ea')
+    .replace(/&euml;/g,   '\u00eb')
+    .replace(/&agrave;/g, '\u00e0')
+    .replace(/&acirc;/g,  '\u00e2')
+    .replace(/&auml;/g,   '\u00e4')
+    .replace(/&icirc;/g,  '\u00ee')
+    .replace(/&iuml;/g,   '\u00ef')
+    .replace(/&ocirc;/g,  '\u00f4')
+    .replace(/&ouml;/g,   '\u00f6')
+    .replace(/&ugrave;/g, '\u00f9')
+    .replace(/&ucirc;/g,  '\u00fb')
+    .replace(/&uuml;/g,   '\u00fc')
+    .replace(/&ccedil;/g, '\u00e7')
+    .replace(/&Eacute;/g, '\u00c9')
+    .replace(/&Egrave;/g, '\u00c8')
+    .replace(/&Agrave;/g, '\u00c0')
+    .replace(/&Ccedil;/g, '\u00c7')
+    .replace(/&Ocirc;/g,  '\u00d4')
+    // Ligatures
+    .replace(/&oelig;/g,  '\u0153')
+    .replace(/&OElig;/g,  '\u0152')
+    .replace(/&aelig;/g,  '\u00e6')
+    // Espaces et typographie
+    .replace(/&nbsp;/g,   '\u00a0')
+    .replace(/&thinsp;/g, '\u2009')
+    .replace(/&hellip;/g, '\u2026')
+    .replace(/&laquo;/g,  '\u00ab')
+    .replace(/&raquo;/g,  '\u00bb')
+    // Codes numériques génériques (&#NNN; et &#xHHH;) — seulement hors guillemets
+    .replace(/&#(\d+);/g,    (_, n) => { const c = +n; return (c === 34 || c === 38 || c === 60 || c === 62) ? _ : String.fromCharCode(c); })
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => { const c = parseInt(h, 16); return (c === 34 || c === 38 || c === 60 || c === 62) ? _ : String.fromCharCode(c); });
+}
+
+function extractJsonLD(html) {
+  const re = /<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    let jsonStr = m[1].trim();
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (_) {
+      // Certains proxies HTML-encodent le contenu des <script> :
+      // on décode les entités de caractères (pas &amp;&lt;&gt;&quot;)
+      try { parsed = JSON.parse(decodeJsonLDEntities(jsonStr)); } catch (_2) { continue; }
+    }
+    const items = Array.isArray(parsed)
+      ? parsed
+      : (parsed['@graph'] ? parsed['@graph'] : [parsed]);
+    for (const item of items) {
+      const type = item['@type'];
+      const isRecipe = type === 'Recipe'
+        || (Array.isArray(type) && type.includes('Recipe'));
+      if (isRecipe) return item;
+    }
+  }
+  return null;
+}
+
+/* ── Décodage des entités HTML ───────────────────────────────── */
+/*
+  Dictionnaire pur JS — ne dépend PAS du DOM (le textarea trick échoue
+  silencieusement dans certains contextes de chargement).
+  Couvre : entités nommées françaises, apostrophes typographiques,
+  codes numériques &#NNN; et &#xHHH;.
+*/
+const _HTML_ENT = {
+  // Ponctuation / espace
+  amp:'&', lt:'<', gt:'>', quot:'"', apos:"'", nbsp:'\u00a0',
+  thinsp:'\u2009', ensp:'\u2002', emsp:'\u2003',
+  laquo:'\u00ab', raquo:'\u00bb',
+  mdash:'\u2014', ndash:'\u2013', bull:'\u2022', middot:'\u00b7',
+  hellip:'\u2026', shy:'\u00ad',
+  // Guillemets / apostrophes typographiques
+  rsquo:'\u2019', lsquo:'\u2018',
+  rdquo:'\u201d', ldquo:'\u201c',
+  sbquo:'\u201a', bdquo:'\u201e',
+  // Minuscules accentuées
+  agrave:'\u00e0', aacute:'\u00e1', acirc:'\u00e2', atilde:'\u00e3',
+  auml:'\u00e4',   aring:'\u00e5', aelig:'\u00e6',
+  ccedil:'\u00e7',
+  egrave:'\u00e8', eacute:'\u00e9', ecirc:'\u00ea', euml:'\u00eb',
+  igrave:'\u00ec', iacute:'\u00ed', icirc:'\u00ee', iuml:'\u00ef',
+  eth:'\u00f0',    ntilde:'\u00f1',
+  ograve:'\u00f2', oacute:'\u00f3', ocirc:'\u00f4', otilde:'\u00f5',
+  ouml:'\u00f6',   oslash:'\u00f8',
+  ugrave:'\u00f9', uacute:'\u00fa', ucirc:'\u00fb', uuml:'\u00fc',
+  yacute:'\u00fd', yuml:'\u00ff',
+  szlig:'\u00df',  oelig:'\u0153',
+  // Majuscules accentuées
+  Agrave:'\u00c0', Aacute:'\u00c1', Acirc:'\u00c2', Atilde:'\u00c3',
+  Auml:'\u00c4',   Aring:'\u00c5', AElig:'\u00c6',
+  Ccedil:'\u00c7',
+  Egrave:'\u00c8', Eacute:'\u00c9', Ecirc:'\u00ca', Euml:'\u00cb',
+  Igrave:'\u00cc', Iacute:'\u00cd', Icirc:'\u00ce', Iuml:'\u00cf',
+  Ntilde:'\u00d1',
+  Ograve:'\u00d2', Oacute:'\u00d3', Ocirc:'\u00d4', Otilde:'\u00d5',
+  Ouml:'\u00d6',   Oslash:'\u00d8',
+  Ugrave:'\u00d9', Uacute:'\u00da', Ucirc:'\u00db', Uuml:'\u00dc',
+  OElig:'\u0152',
+};
+
+function decodeHtmlEntities(str) {
+  if (!str || typeof str !== 'string') return str;
+  const _pass = (s) => s
+    // Entités nommées : &eacute; &rsquo; etc.
+    .replace(/&([a-zA-Z]+\d*);/g,   (m, e) => Object.prototype.hasOwnProperty.call(_HTML_ENT, e) ? _HTML_ENT[e] : m)
+    // Entités numériques décimales : &#233;
+    .replace(/&#(\d+);/g,           (_, n) => String.fromCharCode(+n))
+    // Entités numériques hexadécimales : &#xe9; &#x2019;
+    .replace(/&#x([0-9a-f]+);/gi,   (_, h) => String.fromCharCode(parseInt(h, 16)));
+  // Double passe : gère &amp;eacute; → &eacute; → é (données doublement encodées)
+  return _pass(_pass(str));
+}
+
+/* ── Durée ISO 8601 → minutes ────────────────────────────────── */
+function parseISO8601Duration(s) {
+  if (!s) return 0;
+  const m = String(s).match(/PT(?:(\d+)H)?(?:(\d+)M)?/i);
+  if (!m) return 0;
+  return (parseInt(m[1] || 0) * 60) + parseInt(m[2] || 0);
+}
+
+/* ── Parser un ingrédient français ──────────────────────────── */
+/*
+  Exemples d'entrée (déjà décodés) :
+    "200 g de farine"
+    "2 œufs"
+    "3 cuillères à soupe d'huile d'olive"
+    "1 oignon"
+    "sel et poivre"
+*/
+const FR_UNITS_RE = [
+  'cuill?[eè]res?\\s+à\\s+soupe', 'cuill?[eè]res?\\s+à\\s+café',
+  'cuill?[eè]res?\\s+à\\s+dessert',
+  'c\\.?à\\.?s\\.?', 'c\\.?à\\.?c\\.?', 'càs', 'càc', 'cs', 'cc',
+  'kg', 'g', 'mg',
+  'litres?', 'l(?=\\b)', 'dl', 'cl', 'ml',
+  'tasses?', 'verres?', 'bols?',
+  'bottes?', 'bouquets?', 'brins?', 'tiges?',
+  'pincées?', 'poignées?', 'gouttes?', 'filets?',
+  'tranches?', 'morceaux?', 'portions?', 'parts?',
+  'boîtes?', 'bocaux?', 'sachets?', 'pochettes?',
+  'gousses?', 'noix?',
+  'cm', 'mm',
+].join('|');
+
+// \u0027 = apostrophe droite, \u2018 = ' gauche, \u2019 = ' droite
+const ING_RE = new RegExp(
+  `^([\\d][\\d,.\\s\u00bd\u00bc\u00be/]*)\\s*(${FR_UNITS_RE})?\\s*` +
+  `(?:de\\s+|d[\u0027\u2018\u2019]\\s*|du\\s+|des\\s+|l[\u0027\u2018\u2019]\\s*|le\\s+|la\\s+|les\\s+)?(.+)$`,
+  'i'
+);
+
+function parseFrenchIngredient(str) {
+  str = str.trim();
+  if (!str) return null;
+
+  const m = str.match(ING_RE);
+  if (m) {
+    const qty     = m[1].trim();
+    const unit    = (m[2] || '').trim();
+    const name    = m[3].trim();
+    const measure = [qty, unit].filter(Boolean).join('\u00a0'); // espace insécable
+    return { measure, name };
+  }
+
+  // Pas de quantité numérique initiale : toute la chaîne est le nom
+  return { measure: '', name: str };
+}
+
+/* ── Transformer le JSON-LD → objet repas interne ────────────── */
+function processCuisineAZRecipe(schema, url) {
+  if (!schema || !schema.name) return null;
+
+  const id = extractIdFromUrl(url) || String(Date.now());
+
+  // Nom — décodage entités
+  const name = decodeHtmlEntities(schema.name.trim());
+
+  // Ingrédients — décodage entités avant parsing
+  const ingredients = (schema.recipeIngredient || [])
+    .map(raw => {
+      const str    = decodeHtmlEntities(String(raw));
+      const parsed = parseFrenchIngredient(str);
+      if (!parsed) return null;
+      return {
+        name:          parsed.name,
+        originalName:  parsed.name,
+        _translated:   true,
+        measure:       parsed.measure,
+        measureFr:     parsed.measure,
+        _measureConverted: true
+      };
+    })
+    .filter(Boolean);
+
+  // Instructions — décodage entités
+  const rawInstructions = schema.recipeInstructions || [];
+  const steps = [];
+  for (const inst of rawInstructions) {
+    if (typeof inst === 'string' && inst.trim()) {
+      steps.push(decodeHtmlEntities(inst.trim()));
+    } else if (inst && typeof inst === 'object') {
+      if (inst['@type'] === 'HowToStep') {
+        const text = decodeHtmlEntities((inst.text || inst.name || '').trim());
+        if (text) steps.push(text);
+      } else if (inst['@type'] === 'HowToSection') {
+        for (const item of (inst.itemListElement || [])) {
+          const text = decodeHtmlEntities((item.text || item.name || '').trim());
+          if (text) steps.push(text);
+        }
       }
-      ing._translated = true;
-    });
-  } catch (_) {}
-}
-
-/* Traduit les mesures via dictionnaire + Google Translate */
-async function translateAllMeasures(ingredients) {
-  const toTranslate = ingredients.filter(i => i.measureFr === undefined);
-  if (toTranslate.length === 0) return;
-  try {
-    toTranslate.forEach(i => {
-      i._measureDict = translateMeasure(i.measure || '');
-    });
-    const batch = toTranslate.map(i => i._measureDict).join('\n||||\n');
-    const translated = await translateText(batch);
-    const lines = translated.split(/\n?\|\|\|\|\n?/);
-    toTranslate.forEach((ing, idx) => {
-      const tr = lines[idx] ? lines[idx].trim() : ing._measureDict;
-      ing.measureFr = tr || ing._measureDict;
-      delete ing._measureDict;
-    });
-  } catch (_) {
-    toTranslate.forEach(i => {
-      i.measureFr = i.measureFr ?? translateMeasure(i.measure || '');
-    });
+    }
   }
+
+  if (!steps.length || !ingredients.length) return null;
+
+  // Temps
+  const prepTime  = parseISO8601Duration(schema.prepTime);
+  const cookTime  = parseISO8601Duration(schema.cookTime);
+  const totalTime = parseISO8601Duration(schema.totalTime) || (prepTime + cookTime);
+  const prep = prepTime  || Math.round((totalTime || 50) * 0.35) || 15;
+  const cook = cookTime  || Math.round((totalTime || 50) * 0.65) || 30;
+
+  // Image
+  let image = schema.image || '';
+  if (Array.isArray(image))       image = image[0] || '';
+  if (typeof image === 'object')  image = image.url || image['@id'] || '';
+
+  // Catégorie
+  let category = '';
+  const rawCat = schema.recipeCategory;
+  if (Array.isArray(rawCat))            category = rawCat[0] || '';
+  else if (typeof rawCat === 'string')  category = rawCat;
+
+  return {
+    id,
+    name,
+    nameFr: name,
+    _nameFrTranslated: true,
+    image,
+    category,
+    area:     schema.recipeCuisine || '',
+    prepTime: prep,
+    cookTime: cook,
+    ingredients,
+    analyzedInstructions: [{
+      steps: steps.map((s, i) => ({ number: i + 1, step: s }))
+    }],
+    stepsFr: steps,
+    url
+  };
 }
 
-/* Traduit les noms de plats en français via Google Translate */
-async function translateMealNames(meals) {
-  const toTranslate = meals.filter(m => !m._nameFrTranslated);
-  if (!toTranslate.length) return;
-  try {
-    const batch = toTranslate.map(m => m.name).join('\n||||\n');
-    const translated = await translateText(batch);
-    const lines = translated.split(/\n?\|\|\|\|\n?/);
-    toTranslate.forEach((m, i) => {
-      m.nameFr = (lines[i] && lines[i].trim()) ? lines[i].trim() : m.name;
-      m._nameFrTranslated = true;
-    });
-  } catch (_) {
-    toTranslate.forEach(m => { m._nameFrTranslated = true; });
-  }
+/* ── Extraction de l'ID depuis une URL de recette ────────────── */
+function extractIdFromUrl(url) {
+  const m750 = url.match(/-r(\d+)\.htm$/);
+  if (m750) return '750g_' + m750[1];
+  // Marmiton : recette_slug_ID.aspx — avant CuisineAZ car les deux finissent en .aspx
+  const mMar = url.match(/recette_[a-z0-9][a-z0-9-]+_(\d+)\.aspx$/);
+  if (mMar) return 'marmiton_' + mMar[1];
+  const mCaz = url.match(/-(\d+)\.aspx$/);
+  if (mCaz) return 'caz_' + mCaz[1];
+  return null;
 }
 
-/* Traduit les étapes de la recette en lot */
-async function translateSteps(steps) {
-  if (!steps.length) return steps;
+/* ── Découverte et cache des URLs de recettes ────────────────── */
+const POOL_DOC_ID   = 'global_v4'; // v4 = Marmiton + pool étendu
+const POOL_TTL_DAYS = 7;
+
+async function loadRecipePool() {
   try {
-    const batch = steps.join('\n||||\n');
-    const translated = await translateText(batch);
-    const lines = translated.split(/\n?\|\|\|\|\n?/);
-    if (lines.length === steps.length) {
-      return lines.map(s => s.trim());
+    const doc = await db.collection('recipePool').doc(POOL_DOC_ID).get();
+    if (doc.exists) {
+      const d = doc.data();
+      const ageDays = (Date.now() - (d.updatedAt?.toMillis?.() || 0)) / 86400000;
+      if (ageDays < POOL_TTL_DAYS && Array.isArray(d.urls) && d.urls.length >= 10) {
+        return d.urls;
+      }
     }
   } catch (_) {}
-  return steps;
+  return null;
 }
 
-/* Ajoute un saut de ligne après chaque phrase */
+async function saveRecipePool(urls) {
+  try {
+    await db.collection('recipePool').doc(POOL_DOC_ID).set({
+      urls,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (_) {}
+}
+
+async function discoverRecipeUrls() {
+  const cached = await loadRecipePool();
+  if (cached) return cached;
+
+  const found = new Set(ALL_SEED_URLS);
+
+  // Enrichissement depuis les pages de catégories 750g
+  const g750Pages = [
+    '/recettes-plats/', '/recettes-soupes-potages/',
+    '/recettes-vegetariennes/', '/recettes-poissons/', '/recettes-tartes-salees/'
+  ];
+  for (const path of g750Pages) {
+    try {
+      const html = await fetchViaProxy(G750_BASE + path);
+      extractRecipeUrls(html).forEach(u => found.add(u));
+    } catch (_) {}
+  }
+
+  // Enrichissement depuis Marmiton (catégories principales)
+  const marmitonPages = [
+    '/recettes/index-des-recettes/',
+    '/recettes/les-mieux-notes/',
+  ];
+  for (const path of marmitonPages) {
+    try {
+      const html = await fetchViaProxy(MARMITON_BASE + path);
+      extractRecipeUrls(html).forEach(u => found.add(u));
+    } catch (_) {}
+  }
+
+  const result = [...found];
+  if (result.length >= 10) saveRecipePool(result);
+  return result;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CACHE MULTI-NIVEAUX DES RECETTES
+   L1 : localStorage (sync, instantané)
+   L2 : Firestore   (async, ~100 ms)
+   L3 : HTTP proxy  (async, 2-5 s)
+══════════════════════════════════════════════════════════════ */
+
+const LS_RECIPE_PREFIX  = 'mm_rc_';
+const LS_RECIPE_TTL_MS  = 14 * 86400000;  // 14 jours en localStorage
+const FS_RECIPE_TTL_DAYS = 30;            // 30 jours en Firestore
+
+/* ── L1 : localStorage ───────────────────────────────────────── */
+function getLocalRecipe(id) {
+  try {
+    const raw = localStorage.getItem(LS_RECIPE_PREFIX + id);
+    if (!raw) return null;
+    const { meal, ts } = JSON.parse(raw);
+    if (Date.now() - ts > LS_RECIPE_TTL_MS) {
+      localStorage.removeItem(LS_RECIPE_PREFIX + id);
+      return null;
+    }
+    return meal;
+  } catch (_) { return null; }
+}
+
+function setLocalRecipe(id, meal) {
+  try {
+    localStorage.setItem(LS_RECIPE_PREFIX + id, JSON.stringify({ meal, ts: Date.now() }));
+  } catch (_) {} // quota dépassé → on ignore silencieusement
+}
+
+/* ── L2 : Firestore ──────────────────────────────────────────── */
+async function getFirestoreRecipe(id) {
+  try {
+    const doc = await db.collection('recipeCache').doc(id).get();
+    if (!doc.exists) return null;
+    const d = doc.data();
+    const ageDays = (Date.now() - (d.cachedAt?.toMillis?.() || 0)) / 86400000;
+    if (ageDays > FS_RECIPE_TTL_DAYS || !d.meal) return null;
+    return d.meal;
+  } catch (_) { return null; }
+}
+
+function setFirestoreRecipe(id, meal) {
+  // fire & forget : n'attend pas la confirmation
+  db.collection('recipeCache').doc(id).set({
+    meal,
+    cachedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(() => {});
+}
+
+/* ── Fetch une recette (L1 → L2 → HTTP) ─────────────────────── */
+async function fetchRecipeFromUrl(url) {
+  const id = extractIdFromUrl(url);
+
+  // L1 : localStorage (sync, instantané)
+  if (id) {
+    const cached = getLocalRecipe(id);
+    if (cached) return cached;
+  }
+
+  // L2 : Firestore (~100 ms)
+  if (id) {
+    const cached = await getFirestoreRecipe(id);
+    if (cached) {
+      setLocalRecipe(id, cached); // remonter en L1 pour la prochaine fois
+      return cached;
+    }
+  }
+
+  // L3 : fetch HTTP via proxy CORS
+  const html   = await fetchViaProxy(url);
+  const schema = extractJsonLD(html);
+  if (!schema) throw new Error('Pas de JSON-LD dans ' + url);
+  const meal = processCuisineAZRecipe(schema, url);
+  if (!meal) throw new Error('Recette incomplète');
+
+  // Stocker en L1 et L2 (fire & forget pour L2)
+  if (id) {
+    setLocalRecipe(id, meal);
+    setFirestoreRecipe(id, meal);
+  }
+
+  return meal;
+}
+
+/* ── Anti-blocage : délai aléatoire pour les sources sensibles ── */
+function sleep(minMs, maxMs) {
+  const ms = minMs + Math.random() * (maxMs - minMs);
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ── Récupérer N recettes uniques ────────────────────────────── */
+/*
+  excludeIds : IDs à ignorer en priorité (plats déjà préparés).
+  Si le pool est épuisé (pas assez de plats non préparés), on retente
+  sans exclusions pour ne jamais bloquer l'utilisateur.
+*/
+async function fetchUniqueMeals(count, excludeIds = []) {
+  const pool       = await discoverRecipeUrls();
+  const excludeSet = new Set(excludeIds.map(String));
+  const result     = [];
+  const usedIds    = new Set();
+
+  const tryUrls = async (urls) => {
+    for (const url of urls) {
+      if (result.length >= count) break;
+      const id = extractIdFromUrl(url);
+      if (!id || usedIds.has(id)) continue;
+      // Délai aléatoire entre les fetches Marmiton pour éviter le rate-limit
+      if (url.includes('marmiton.org') && result.length > 0) {
+        await sleep(700, 1500);
+      }
+      try {
+        const meal = await fetchRecipeFromUrl(url);
+        usedIds.add(meal.id);
+        result.push(meal);
+      } catch (e) {
+        console.warn('Recette ignorée :', url, '—', e.message);
+      }
+    }
+  };
+
+  // Première passe : sans les plats préparés
+  await tryUrls(shuffle(pool.filter(url => {
+    const id = extractIdFromUrl(url);
+    return id && !excludeSet.has(id);
+  })));
+
+  // Fallback : pool épuisé → on accepte les plats déjà préparés
+  if (result.length < count && excludeIds.length > 0) {
+    console.info('Pool épuisé — fallback sur les plats préparés');
+    await tryUrls(shuffle(pool.filter(url => {
+      const id = extractIdFromUrl(url);
+      return id && !usedIds.has(id);
+    })));
+  }
+
+  return result;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UTILITAIRES UI
+══════════════════════════════════════════════════════════════ */
+
 function addSentenceBreaks(text) {
   return text.replace(/([.!?])\s+/g, '$1<br>').trim();
 }
 
-/* ── Traductions statiques ──────────────────────────────────── */
-const DISH_TYPES_FR = {
-  'main course':    'plat principal',
-  'main dish':      'plat principal',
-  'side dish':      'accompagnement',
-  'dessert':        'dessert',
-  'appetizer':      'entrée',
-  'salad':          'salade',
-  'bread':          'pain',
-  'breakfast':      'petit-déjeuner',
-  'soup':           'soupe',
-  'beverage':       'boisson',
-  'sauce':          'sauce',
-  'marinade':       'marinade',
-  'fingerfood':     'amuse-bouche',
-  'snack':          'en-cas',
-  'drink':          'boisson',
-  'starter':        'entrée',
-  'antipasti':      'antipasti',
-  'antipasto':      'antipasto',
-  "hor d'oeuvre":   "hors-d'œuvre",
-  'lunch':          'déjeuner',
-  'dinner':         'dîner'
-};
-
-const CUISINES_SPOON_FR = {
-  'french':           'française',
-  'italian':          'italienne',
-  'american':         'américaine',
-  'mexican':          'mexicaine',
-  'asian':            'asiatique',
-  'chinese':          'chinoise',
-  'japanese':         'japonaise',
-  'thai':             'thaïlandaise',
-  'indian':           'indienne',
-  'mediterranean':    'méditerranéenne',
-  'spanish':          'espagnole',
-  'greek':            'grecque',
-  'middle eastern':   'du Moyen-Orient',
-  'british':          'britannique',
-  'german':           'allemande',
-  'eastern european': "d'Europe de l'Est",
-  'nordic':           'nordique',
-  'latin american':   'latino-américaine',
-  'caribbean':        'caribéenne',
-  'african':          'africaine',
-  'korean':           'coréenne',
-  'vietnamese':       'vietnamienne',
-  'jewish':           'juive',
-  'cajun':            'cajun',
-  'creole':           'créole',
-  'irish':            'irlandaise',
-  'portuguese':       'portugaise',
-  'scandinavian':     'scandinave'
-};
-
-function translateDishType(t) {
-  return DISH_TYPES_FR[t.toLowerCase()] || t;
-}
-function translateCuisineSpoon(c) {
-  return CUISINES_SPOON_FR[c.toLowerCase()] || c;
-}
-
-/* ── Traduction des quantités / mesures ─────────────────────── */
-
-function convertMixedNumber(str) {
-  return str.replace(/\b(\d+)\s+(\d+)\/(\d+)\b/g, (_, whole, num, den) => {
-    const val = parseInt(whole) + parseInt(num) / parseInt(den);
-    const rounded = Math.round(val * 100) / 100;
-    return String(rounded).replace('.', ',');
-  });
-}
-
-function convertPoundsToGrams(s) {
-  return s.replace(
-    /([\d]+(?:[,.]\d+)?)\s*(?:lbs?|pounds?)/gi,
-    (_, n) => {
-      const val = parseFloat(n.replace(',', '.'));
-      return Math.round(val * 450) + 'g';
-    }
-  );
-}
-
-const UNITS_FR = {
-  'teaspoons':   'cuillères à café',
-  'teaspoon':    'cuillère à café',
-  'tspns':       'cuillères à café',
-  'tspn':        'cuillère à café',
-  'tsps':        'cuillères à café',
-  'tsp':         'cuillère à café',
-  'tablespoons': 'cuillères à soupe',
-  'tablespoon':  'cuillère à soupe',
-  'tbsps':       'cuillères à soupe',
-  'tbsp':        'cuillère à soupe',
-  'tbs':         'cuillère à soupe',
-  'tbl':         'cuillère à soupe',
-  'fluid ounces':'onces liquides',
-  'fluid ounce': 'once liquide',
-  'fl oz':       'once liquide',
-  'fl. oz':      'once liquide',
-  'fl. oz.':     'once liquide',
-  'cups':        'tasses',
-  'cup':         'tasse',
-  'pints':       'pintes',
-  'pint':        'pinte',
-  'pt':          'pinte',
-  'quarts':      'quarts',
-  'quart':       'quart',
-  'qt':          'quart',
-  'gallons':     'gallons',
-  'gallon':      'gallon',
-  'gal':         'gallon',
-  'milliliters': 'millilitres',
-  'millilitres': 'millilitres',
-  'milliliter':  'millilitre',
-  'millilitre':  'millilitre',
-  'ml':          'ml',
-  'mls':         'ml',
-  'liters':      'litres',
-  'litres':      'litres',
-  'liter':       'litre',
-  'litre':       'litre',
-  'l':           'l',
-  'ounces':      'onces',
-  'ounce':       'once',
-  'ozs':         'onces',
-  'oz':          'once',
-  'pounds':      'livres',
-  'pound':       'livre',
-  'lbs':         'livres',
-  'lb':          'livre',
-  'grams':       'grammes',
-  'gram':        'gramme',
-  'gms':         'grammes',
-  'gm':          'gramme',
-  'gs':          'g',
-  'g':           'g',
-  'kilograms':   'kilogrammes',
-  'kilogram':    'kilogramme',
-  'kgs':         'kg',
-  'kg':          'kg',
-  'pinches':     'pincées',
-  'pinch':       'pincée',
-  'dashes':      'traits',
-  'dash':        'trait',
-  'drops':       'gouttes',
-  'drop':        'goutte',
-  'smidgen':     'pointe',
-  'smidgens':    'pointes',
-  'sticks':      'bâtons',
-  'stick':       'bâton',
-  'cloves':      'gousses',
-  'clove':       'gousse',
-  'bunches':     'bottes',
-  'bunch':       'botte',
-  'sprigs':      'brins',
-  'sprig':       'brin',
-  'heads':       'têtes',
-  'head':        'tête',
-  'stalks':      'tiges',
-  'stalk':       'tige',
-  'ribs':        'branches',
-  'rib':         'branche',
-  'zests':       'zestes',
-  'zest':        'zeste',
-  'handfuls':    'poignées',
-  'handful':     'poignée',
-  'heaped tablespoons': 'cuillères à soupe bombées',
-  'heaped tablespoon':  'cuillère à soupe bombée',
-  'heaped teaspoons':   'cuillères à café bombées',
-  'heaped teaspoon':    'cuillère à café bombée',
-  'heaped spoonful':    'cuillère bombée',
-  'level tablespoons':  'cuillères à soupe rases',
-  'level tablespoon':   'cuillère à soupe rase',
-  'level teaspoons':    'cuillères à café rases',
-  'level teaspoon':     'cuillère à café rase',
-  'level spoonful':     'cuillère rase',
-  'large':       'grand',
-  'medium':      'moyen',
-  'small':       'petit',
-  'large ones':  'gros',
-  'whole':       'entier',
-  'halved':      'en deux',
-  'sliced':      'tranché',
-  'chopped':     'haché',
-  'diced':       'en dés',
-  'crushed':     'écrasé',
-  'minced':      'haché finement',
-  'grated':      'râpé',
-  'ground':      'moulu',
-  'beaten':      'battu',
-  'boiling':     'bouillant',
-  'scoops':      'boules',
-  'scoop':       'boule',
-  'cooked':      'cuit',
-  'peeled':      'pelé',
-  'fresh':       'frais',
-  'dried':       'séché',
-  'frozen':      'congelé',
-  'can':         'boîte',
-  'cans':        'boîtes',
-  'tin':         'boîte',
-  'tins':        'boîtes',
-  'package':     'sachet',
-  'packages':    'sachets',
-  'pack':        'sachet',
-  'packs':       'sachets',
-  'bag':         'sachet',
-  'bags':        'sachets',
-  'jar':         'bocal',
-  'jars':        'bocaux',
-  'bottle':      'bouteille',
-  'bottles':     'bouteilles',
-  'slice':       'tranche',
-  'slices':      'tranches',
-  'piece':       'morceau',
-  'pieces':      'morceaux',
-  'strip':       'lanière',
-  'strips':      'lanières',
-  'cube':        'cube',
-  'cubes':       'cubes',
-  'leaf':        'feuille',
-  'leaves':      'feuilles',
-  'spear':       'pointe',
-  'spears':      'pointes',
-  'floret':      'bouquet',
-  'florets':     'bouquets',
-  'clump':       'touffe',
-  'wedge':       'quartier',
-  'wedges':      'quartiers',
-  'rasher':      'tranche',
-  'rashers':     'tranches',
-  'knob':        'noix',
-  'knobs':       'noix',
-  'fillet':      'filet',
-  'fillets':     'filets',
-  'leg':         'cuisse',
-  'legs':        'cuisses',
-  'inch':        'cm',
-  'inches':      'cm',
-  'centimeter':  'cm',
-  'centimetre':  'cm',
-  'cm':          'cm',
-  'to taste':    'selon le goût',
-  'as needed':   'selon besoin',
-  'as required': 'selon besoin',
-  'optional':    'facultatif',
-  'or to taste': 'ou selon le goût'
-};
-
-function translateMeasure(raw) {
-  if (!raw || !raw.trim()) return raw;
-  let s = convertMixedNumber(raw.trim());
-  s = convertPoundsToGrams(s);
-  const keys = Object.keys(UNITS_FR)
-    .filter(k => !['pounds','pound','lbs','lb'].includes(k))
-    .sort((a, b) => b.length - a.length);
-  for (const key of keys) {
-    const re = new RegExp('(?<![\\w\\u00C0-\\u024F])' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w\\u00C0-\\u024F])', 'gi');
-    s = s.replace(re, UNITS_FR[key]);
-  }
-  return s;
-}
-
-/* Dictionnaire d'ingrédients courants EN→FR */
-const ING_FR = {
-  'chicken breast':'blanc de poulet','chicken thighs':'cuisses de poulet',
-  'chicken':'poulet','beef':'bœuf','pork':'porc','lamb':'agneau',
-  'salmon':'saumon','tuna':'thon','shrimp':'crevettes','prawns':'crevettes',
-  'cod':'cabillaud','egg':'œuf','eggs':'œufs','milk':'lait',
-  'butter':'beurre','cream':'crème','cheese':'fromage',
-  'parmesan':'parmesan','mozzarella':'mozzarella','cheddar':'cheddar',
-  'flour':'farine','sugar':'sucre','brown sugar':'sucre roux',
-  'salt':'sel','pepper':'poivre','black pepper':'poivre noir',
-  'olive oil':"huile d'olive",'vegetable oil':'huile végétale',
-  'sunflower oil':'huile de tournesol','oil':'huile',
-  'onion':'oignon','onions':'oignons','garlic':'ail',
-  'tomato':'tomate','tomatoes':'tomates','tomato paste':'concentré de tomates',
-  'tomato sauce':'sauce tomate','potatoes':'pommes de terre','potato':'pomme de terre',
-  'carrots':'carottes','carrot':'carotte','celery':'céleri',
-  'spinach':'épinards','mushrooms':'champignons','mushroom':'champignon',
-  'bell pepper':'poivron','peppers':'poivrons','zucchini':'courgette',
-  'aubergine':'aubergine','eggplant':'aubergine','broccoli':'brocoli',
-  'cauliflower':'chou-fleur','cabbage':'chou','lettuce':'laitue',
-  'cucumber':'concombre','peas':'petits pois','beans':'haricots',
-  'chickpeas':'pois chiches','lentils':'lentilles',
-  'rice':'riz','pasta':'pâtes','spaghetti':'spaghetti',
-  'bread':'pain','breadcrumbs':'chapelure',
-  'lemon':'citron','lime':'citron vert','orange':'orange',
-  'apple':'pomme','banana':'banane','strawberries':'fraises',
-  'parsley':'persil','coriander':'coriandre','cilantro':'coriandre',
-  'basil':'basilic','thyme':'thym','rosemary':'romarin',
-  'oregano':'origan','bay leaves':'laurier','bay leaf':'laurier',
-  'cumin':'cumin','paprika':'paprika','turmeric':'curcuma',
-  'cinnamon':'cannelle','ginger':'gingembre','chilli':'piment',
-  'chili':'piment','cayenne pepper':'poivre de Cayenne',
-  'curry powder':'poudre de curry','soy sauce':'sauce soja',
-  'fish sauce':'sauce de poisson','oyster sauce':'sauce huître',
-  'worcestershire sauce':'sauce Worcestershire',
-  'vinegar':'vinaigre','balsamic vinegar':'vinaigre balsamique',
-  'stock':'bouillon','chicken stock':'bouillon de poulet',
-  'beef stock':'bouillon de bœuf','vegetable stock':'bouillon de légumes',
-  'water':'eau','white wine':'vin blanc','red wine':'vin rouge',
-  'honey':'miel','maple syrup':"sirop d'érable",
-  'baking powder':'levure chimique','baking soda':'bicarbonate de soude',
-  'vanilla extract':'extrait de vanille','vanilla':'vanille',
-  'chocolate':'chocolat','cocoa powder':'cacao en poudre',
-  'nuts':'noix','almonds':'amandes','walnuts':'noix','peanuts':'cacahuètes',
-  'sesame seeds':'graines de sésame','sesame oil':'huile de sésame',
-  'spring onions':'oignons verts','scallions':'oignons verts',
-  'leek':'poireau','shallot':'échalote','shallots':'échalotes',
-  'corn':'maïs','sweetcorn':'maïs doux',
-  'coconut milk':'lait de coco','coconut':'noix de coco',
-  'yogurt':'yaourt','sour cream':'crème fraîche',
-  'mayonnaise':'mayonnaise','mustard':'moutarde',
-  'ketchup':'ketchup','tabasco':'tabasco',
-  'anchovies':'anchois','capers':'câpres','olives':'olives',
-  'bacon':'bacon','ham':'jambon','sausage':'saucisse','sausages':'saucisses',
-  'minced beef':'bœuf haché','ground beef':'bœuf haché',
-  'turkey':'dinde','duck':'canard','rabbit':'lapin',
-  'tofu':'tofu','tempeh':'tempeh',
-  'mint':'menthe','dill':'aneth','chives':'ciboulette'
-};
-
-function translateIngredient(name) {
-  const key = name.toLowerCase().trim();
-  const fr  = ING_FR[key];
-  return { name: fr || name, originalName: name, _translated: !!fr };
-}
-
-/* ── Conversion tasses → g ou ml selon l'ingrédient ─────────── */
-// Table : 1 tasse (cup) par catégorie
-const CUP_RULES = [
-  {
-    // Liquides : 250 ml / tasse
-    test: name => /water|milk|cream|broth|stock|juice|wine|vinegar|oil|sauce|buttermilk|yogurt|syrup|honey|molasses|beer|cider|coconut milk|lemon|lime|orange juice|tomato|brine/.test(name),
-    factor: 250, unit: 'ml', display: v => v >= 1000 ? (Math.round(v / 100) / 10) + ' l' : v + ' ml'
-  },
-  {
-    // Farine : 125 g / tasse
-    test: name => /flour|farine/.test(name),
-    factor: 125, unit: 'g', display: v => v + ' g'
-  },
-  {
-    // Sucre blanc/semoule : 200 g / tasse
-    test: name => /\bsugar\b/.test(name) && !/brown|powdered|confectioners|icing/.test(name),
-    factor: 200, unit: 'g', display: v => v + ' g'
-  },
-  {
-    // Sucre roux / glace : 220 g / tasse (approximation)
-    test: name => /brown sugar|powdered sugar|confectioners|icing sugar/.test(name),
-    factor: 220, unit: 'g', display: v => v + ' g'
-  },
-  {
-    // Beurre : 225 g / tasse
-    test: name => /\bbutter\b/.test(name),
-    factor: 225, unit: 'g', display: v => v + ' g'
-  }
-];
-
-function convertCupsToMetric(ingredientName, amount) {
-  if (!amount || amount === 0) return null;
-  const name = (ingredientName || '').toLowerCase();
-  for (const rule of CUP_RULES) {
-    if (rule.test(name)) {
-      return rule.display(Math.round(amount * rule.factor));
+function parseSteps(stepsArr) {
+  if (!stepsArr || !stepsArr.length) return [];
+  const steps = [];
+  for (const section of stepsArr) {
+    for (const step of (section.steps || [])) {
+      if (step.step && step.step.trim().length > 4) steps.push(step.step.trim());
     }
   }
-  return null; // inconnu → garder "tasse"
-}
-
-/* ── Formatage d'un nombre pour l'affichage FR ──────────────── */
-function formatAmount(n) {
-  if (!n || n === 0) return '';
-  const rounded = Math.round(n * 100) / 100;
-  if (rounded === Math.floor(rounded)) return String(rounded);
-  return String(rounded).replace('.', ',');
+  return steps;
 }
 
 /* ── État ────────────────────────────────────────────────────── */
-let currentUser = null;
-let dailyMeals  = [];
-let activeMeal  = null;
+let currentUser   = null;
+let dailyMeals    = [];
+let activeMeal    = null;
+let searchResults = null; // null = mode daily meals, array = résultats de recherche
 
 /* ── Navigation avec historique navigateur ──────────────────── */
 const SCREENS = ['login', 'home', 'ingredients', 'recipe'];
@@ -503,13 +987,12 @@ function showScreen(name, pushHistory = true) {
 }
 
 window.addEventListener('popstate', (e) => {
-  const screen = e.state && e.state.screen ? e.state.screen : 'login';
+  const screen = e.state?.screen ?? 'login';
+  if (screen === 'home') resetSearch();
   showScreen(screen, false);
 });
 
-function navBack() {
-  history.back();
-}
+function navBack() { history.back(); }
 
 /* ── Utilitaires ────────────────────────────────────────────── */
 function parisDateKey() {
@@ -532,115 +1015,20 @@ function showToast(msg, ms = 3000) {
 
 function escHtml(s) {
   return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function resetSearch() {
+  const input = document.getElementById('search-input');
+  if (input) input.value = '';
+  searchResults = null;
 }
 
 function goHome() {
+  resetSearch();
   renderMealCards(dailyMeals);
   showScreen('home');
-}
-
-/* ── API Spoonacular ─────────────────────────────────────────── */
-const SPOON_KEY = '184314a7cd904f2bbe5292ec50ee12af';
-const SPOON     = 'https://api.spoonacular.com';
-
-function parseSteps(stepsArr) {
-  if (!stepsArr || !stepsArr.length) return [];
-  const steps = [];
-  for (const section of stepsArr) {
-    for (const step of (section.steps || [])) {
-      if (step.step && step.step.trim().length > 4) steps.push(step.step.trim());
-    }
-  }
-  return steps;
-}
-
-function processSpoonMeal(raw) {
-  const ingredients = (raw.extendedIngredients || []).map(ing => {
-    const amount = ing.amount || 0;
-    const unit   = (ing.unit || '').trim();
-    const ingName = ing.nameClean || ing.name || '';
-
-    // Conversion lb → g
-    if (/^lbs?$|^pounds?$/i.test(unit)) {
-      const grams = Math.round(amount * 450);
-      return { name: ingName, originalName: ingName, _translated: false, measure: grams + ' g' };
-    }
-
-    // Conversion cup → g ou ml selon l'ingrédient
-    if (/^cups?$/i.test(unit)) {
-      const converted = convertCupsToMetric(ingName, amount);
-      if (converted) {
-        const { name, originalName, _translated } = translateIngredient(ingName);
-        return { name, originalName, _translated, measure: converted };
-      }
-    }
-
-    const measureRaw = [amount ? formatAmount(amount) : '', unit].filter(Boolean).join(' ');
-    const { name, originalName, _translated } = translateIngredient(ingName);
-    return { name, originalName, _translated, measure: translateMeasure(measureRaw) };
-  });
-
-  const dishType = (raw.dishTypes || [])[0] || '';
-  const cuisine  = (raw.cuisines  || [])[0] || '';
-  const total    = raw.readyInMinutes || 0;
-  const prepTime = raw.preparationMinutes > 0 ? raw.preparationMinutes : Math.round(total * 0.35) || 20;
-  const cookTime = raw.cookingMinutes    > 0 ? raw.cookingMinutes    : Math.round(total * 0.65) || 30;
-
-  return {
-    id:           String(raw.id),
-    name:         raw.title,
-    nameFr:       raw.title,
-    _nameFrTranslated: false,
-    image:        raw.image || '',
-    category:     dishType ? translateDishType(dishType) : '',
-    area:         cuisine  ? translateCuisineSpoon(cuisine) : '',
-    prepTime,
-    cookTime,
-    ingredients,
-    analyzedInstructions: raw.analyzedInstructions || [],
-    stepsFr: null
-  };
-}
-
-async function fetchSpoonRandom() {
-  const url = `${SPOON}/recipes/random?number=6&includeNutrition=false&instructionsRequired=true&apiKey=${SPOON_KEY}`;
-  const res  = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Spoonacular ${res.status} — ${txt.slice(0, 120)}`);
-  }
-  const data = await res.json();
-  if (!Array.isArray(data.recipes)) {
-    throw new Error('Réponse inattendue : ' + JSON.stringify(data).slice(0, 120));
-  }
-  return data.recipes;
-}
-
-async function fetchUniqueMeals(count, excludeIds = []) {
-  const result  = [];
-  const usedIds = new Set(excludeIds.map(String));
-  const maxTry  = 6;
-
-  for (let attempt = 0; attempt < maxTry && result.length < count; attempt++) {
-    try {
-      const batch = await fetchSpoonRandom();
-      for (const raw of batch) {
-        if (result.length >= count) break;
-        if (!raw.analyzedInstructions || !raw.analyzedInstructions.length) continue;
-        if (!usedIds.has(String(raw.id))) {
-          usedIds.add(String(raw.id));
-          result.push(processSpoonMeal(raw));
-        }
-      }
-    } catch (e) {
-      console.error('fetchUniqueMeals erreur:', e);
-      showToast('Erreur API : ' + e.message.slice(0, 80));
-      break;
-    }
-  }
-  return result;
 }
 
 /* ── Firestore ──────────────────────────────────────────────── */
@@ -655,16 +1043,23 @@ async function getOrCreateUser(code) {
   return { code, preparedMeals: [], ...doc.data() };
 }
 
+const MEALS_V = 2; // Incrémenter pour invalider le cache Firestore journalier
+
 async function loadDailyMeals(userCode) {
   const doc = await db.collection('dailyMeals').doc(userCode).get();
-  if (doc.exists && doc.data().date === parisDateKey()) {
-    return doc.data().meals;
+  if (doc.exists && doc.data().date === parisDateKey() && doc.data().v === MEALS_V) {
+    const meals = doc.data().meals;
+    if (!meals || !meals[0]) return null;
+    const firstId = meals[0].id || '';
+    // Invalide les anciens caches Spoonacular ou sans préfixe source
+    if (!meals[0].url || (!firstId.startsWith('750g_') && !firstId.startsWith('caz_'))) return null;
+    return meals;
   }
   return null;
 }
 
 async function saveDailyMeals(userCode, meals) {
-  await db.collection('dailyMeals').doc(userCode).set({ date: parisDateKey(), meals });
+  await db.collection('dailyMeals').doc(userCode).set({ date: parisDateKey(), v: MEALS_V, meals });
 }
 
 async function persistPrepared(userCode, mealId) {
@@ -708,6 +1103,17 @@ document.getElementById('code-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') handleLogin();
 });
 
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleSearch();
+});
+
+document.getElementById('search-input').addEventListener('input', e => {
+  if (!e.target.value.trim()) {
+    searchResults = null;
+    renderMealCards(dailyMeals);
+  }
+});
+
 /* ── Déconnexion ────────────────────────────────────────────── */
 function handleLogout() {
   localStorage.removeItem('mm_user');
@@ -718,42 +1124,198 @@ function handleLogout() {
   showScreen('login');
 }
 
+/* ══════════════════════════════════════════════════════════════
+   RECHERCHE PAR MOT-CLÉ (slug matching)
+══════════════════════════════════════════════════════════════ */
+
+/*
+  Normalise un terme pour le comparer aux slugs d'URL (déjà en ASCII-kebab).
+  Exemples : "Bœuf" → "boeuf"  |  "Côte" → "cote"  |  "poulet rôti" → "poulet roti"
+*/
+function normalizeQuery(q) {
+  return q.toLowerCase().trim()
+    .replace(/[éèêë]/g, 'e')
+    .replace(/[àâä]/g, 'a')
+    .replace(/[ôö]/g, 'o')
+    .replace(/[ùûü]/g, 'u')
+    .replace(/[îï]/g, 'i')
+    .replace(/ç/g, 'c')
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
+    .replace(/\s+/g, ' ');
+}
+
+/*
+  Extrait uniquement la portion "nom du plat" du slug d'une URL de recette.
+  On exclut le domaine, les chemins de catégorie et l'ID numérique final.
+  Ex: "https://www.750g.com/poulet-au-curry-r2251.htm" → "poulet-au-curry"
+      "https://www.marmiton.org/recettes/recette_boeuf-bourguignon_18427.aspx" → "boeuf-bourguignon"
+      "https://www.cuisineaz.com/recettes/gratin-dauphinois-2341.aspx" → "gratin-dauphinois"
+*/
+function extractRecipeSlug(url) {
+  // 750g : /slug-rID.htm
+  const m750 = url.match(/\/([a-z0-9][a-z0-9-]+)-r\d+\.htm$/);
+  if (m750) return m750[1];
+  // Marmiton : /recettes/recette_slug_ID.aspx
+  const mMar = url.match(/recette_([a-z0-9][a-z0-9-]+)_\d+\.aspx$/);
+  if (mMar) return mMar[1];
+  // CuisineAZ : /recettes/slug-ID.aspx
+  const mCaz = url.match(/recettes\/([a-z0-9][a-z0-9-]+)-\d+\.aspx$/);
+  if (mCaz) return mCaz[1];
+  return '';
+}
+
+async function searchMeals(query) {
+  const q = normalizeQuery(query);
+  if (!q) return;
+
+  const searchBtn = document.getElementById('search-btn');
+  searchBtn.disabled = true;
+  showSkeletons();
+
+  try {
+    // Mots-clés à retrouver dans le slug du nom du plat uniquement
+    const words = q.split(' ').filter(Boolean);
+    const preparedSet = new Set((currentUser.preparedMeals || []).map(String));
+
+    const matching = shuffle(ALL_SEED_URLS.filter(url => {
+      // Exclure les plats déjà préparés
+      const id = extractIdFromUrl(url);
+      if (id && preparedSet.has(id)) return false;
+      // Correspondance stricte sur le nom du plat (slug uniquement)
+      const slug = normalizeQuery(extractRecipeSlug(url));
+      return slug && words.every(w => slug.includes(w));
+    }));
+
+    if (matching.length === 0) {
+      searchResults = [];
+      document.getElementById('meals-grid').innerHTML = `
+        <div class="empty-state">
+          <div class="big-icon">🔍</div>
+          <h3>Aucun résultat</h3>
+          <p>Aucune recette trouvée pour «&nbsp;${escHtml(query)}&nbsp;».<br>Essayez un autre terme.</p>
+        </div>`;
+      return;
+    }
+
+    const results = [];
+    const usedIds = new Set();
+
+    // 750g + CuisineAZ : fetch en parallèle (jusqu'à 6 candidats → prendre les 3 premiers OK)
+    const nonMar = matching.filter(u => !u.includes('marmiton.org')).slice(0, 6);
+    const marUrls = matching.filter(u => u.includes('marmiton.org'));
+
+    const settled = await Promise.allSettled(nonMar.map(u => fetchRecipeFromUrl(u)));
+    for (const r of settled) {
+      if (results.length >= 3) break;
+      if (r.status === 'fulfilled' && r.value && !usedIds.has(r.value.id)) {
+        usedIds.add(r.value.id);
+        results.push(r.value);
+      }
+    }
+
+    // Marmiton en fallback séquentiel (avec délai anti-blocage)
+    for (const url of marUrls) {
+      if (results.length >= 3) break;
+      const id = extractIdFromUrl(url);
+      if (!id || usedIds.has(id)) continue;
+      if (results.length > 0) await sleep(700, 1500);
+      try {
+        const meal = await fetchRecipeFromUrl(url);
+        usedIds.add(meal.id);
+        results.push(meal);
+      } catch (e) {
+        console.warn('Recherche — recette ignorée :', url, e.message);
+      }
+    }
+
+    if (results.length === 0) {
+      searchResults = [];
+      document.getElementById('meals-grid').innerHTML = `
+        <div class="empty-state">
+          <div class="big-icon">😕</div>
+          <h3>Résultats indisponibles</h3>
+          <p>Les recettes n'ont pas pu être chargées.<br>Vérifiez votre connexion et réessayez.</p>
+        </div>`;
+      return;
+    }
+
+    searchResults = results;
+    renderMealCards(results);
+  } catch (e) {
+    console.error('searchMeals:', e);
+    showToast('Erreur lors de la recherche.');
+    renderMealCards(dailyMeals);
+  } finally {
+    searchBtn.disabled = false;
+  }
+}
+
+function handleSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  searchMeals(q);
+}
+
 /* ── Écran d'accueil ────────────────────────────────────────── */
 async function initHome() {
   showScreen('home');
   showSkeletons();
 
   try {
+    const prepared = new Set(currentUser.preparedMeals || []);
     let meals = await loadDailyMeals(currentUser.code);
-    if (!meals) {
-      meals = await fetchUniqueMeals(3, currentUser.preparedMeals || []);
+
+    if (meals) {
+      // Filtrer les plats déjà préparés depuis la dernière sauvegarde du cache
+      const unprepared = meals.filter(m => !prepared.has(m.id));
+      const missing    = 3 - unprepared.length;
+
+      if (missing > 0) {
+        // Récupérer des remplaçants pour les plats préparés
+        const alreadySeen = new Set([...prepared, ...meals.map(m => m.id)]);
+        const replacements = await fetchUniqueMeals(missing, [...alreadySeen]);
+        meals = [...unprepared, ...replacements];
+        await saveDailyMeals(currentUser.code, meals);
+      } else {
+        meals = unprepared.slice(0, 3);
+      }
+    } else {
+      // Aucun cache pour aujourd'hui
+      meals = await fetchUniqueMeals(3, [...prepared]);
+      if (meals.length === 0) throw new Error('Aucune recette récupérée');
       await saveDailyMeals(currentUser.code, meals);
     }
+
     dailyMeals = meals;
-    renderMealCards(meals);
-    await translateMealNames(meals);
     renderMealCards(meals);
   } catch (e) {
     console.error(e);
     document.getElementById('meals-grid').innerHTML =
-      '<div class="empty-state"><div class="big-icon">⚠️</div><h3>Erreur de chargement</h3><p>Impossible de récupérer les recettes.<br>Vérifiez votre connexion et réessayez.</p></div>';
+      `<div class="empty-state">
+        <div class="big-icon">⚠️</div>
+        <h3>Erreur de chargement</h3>
+        <p>Impossible de récupérer les recettes.<br>Vérifiez votre connexion et réessayez.</p>
+       </div>`;
   }
 }
 
 /* ── Actualiser les repas ───────────────────────────────────── */
 async function refreshMeals() {
+  // Reset la recherche en cours
+  document.getElementById('search-input').value = '';
+  searchResults = null;
+
   const btn = document.getElementById('btn-refresh');
   btn.classList.add('spinning');
   btn.disabled = true;
 
   showSkeletons();
   try {
-    const prepared = (currentUser.preparedMeals || []);
-    const meals = await fetchUniqueMeals(3, prepared);
+    const meals = await fetchUniqueMeals(3, currentUser.preparedMeals || []);
+    if (meals.length === 0) throw new Error('Aucune recette récupérée');
     dailyMeals = meals;
     await saveDailyMeals(currentUser.code, meals);
-    renderMealCards(meals);
-    await translateMealNames(meals);
     renderMealCards(meals);
   } catch (e) {
     console.error(e);
@@ -766,7 +1328,7 @@ async function refreshMeals() {
 }
 
 function showSkeletons() {
-  document.getElementById('meals-grid').innerHTML = [1,2,3].map(() => `
+  document.getElementById('meals-grid').innerHTML = [1, 2, 3].map(() => `
     <div class="skel-card">
       <div class="skel" style="height:185px;border-radius:0;"></div>
       <div style="padding:14px">
@@ -789,18 +1351,19 @@ function renderMealCards(meals) {
   }
   grid.innerHTML = meals.map(m => {
     const totalTime = (m.prepTime || 0) + (m.cookTime || 0);
+    const displayName = escHtml(decodeHtmlEntities(m.nameFr || m.name || ''));
     const timeHtml = totalTime ? `
       <div class="meal-time-row">
-        <span class="meal-total-time">${totalTime} min</span>
-        ${(m.prepTime || m.cookTime) ? `<span class="meal-time-detail">⏱ ${m.prepTime} min &nbsp;🔥 ${m.cookTime} min</span>` : ''}
+        <span class="meal-total-time">⏰ ${totalTime} min</span>
+        <span class="meal-time-detail">⏱ ${m.prepTime} min &nbsp;🔥 ${m.cookTime} min</span>
       </div>` : '';
     return `
     <div class="meal-card" onclick="openMeal('${m.id}')">
-      <img class="meal-card-img" src="${escHtml(m.image)}" alt="${escHtml(m.nameFr || m.name)}"
+      <img class="meal-card-img" src="${escHtml(m.image || '')}" alt="${displayName}"
            onerror="this.src='';this.style.minHeight='80px';this.style.background='#FFF0E8';"
            loading="lazy" />
       <div class="meal-card-body">
-        <div class="meal-card-name">${escHtml(m.nameFr || m.name)}</div>
+        <div class="meal-card-name">${displayName}</div>
         ${timeHtml}
       </div>
     </div>`;
@@ -809,34 +1372,30 @@ function renderMealCards(meals) {
 
 /* ── Écran Ingrédients ──────────────────────────────────────── */
 async function openMeal(mealId) {
-  activeMeal = dailyMeals.find(m => m.id === mealId);
+  // Chercher dans les résultats de recherche en priorité, puis dans les repas du jour
+  activeMeal = (searchResults && searchResults.find(m => m.id === mealId))
+    || dailyMeals.find(m => m.id === mealId);
   if (!activeMeal) return;
 
-  document.getElementById('ing-img').src = activeMeal.image;
-  document.getElementById('ing-img').alt = activeMeal.nameFr || activeMeal.name;
-  document.getElementById('ing-title').textContent = activeMeal.nameFr || activeMeal.name;
+  const mealName = decodeHtmlEntities(activeMeal.nameFr || activeMeal.name || '');
+
+  document.getElementById('ing-img').src   = activeMeal.image || '';
+  document.getElementById('ing-img').alt   = mealName;
+  document.getElementById('ing-title').textContent = mealName;
 
   const parts = [];
-  if (activeMeal.category) parts.push(activeMeal.category);
-  if (activeMeal.area)     parts.push('Cuisine ' + activeMeal.area);
+  if (activeMeal.category) parts.push(decodeHtmlEntities(activeMeal.category));
+  if (activeMeal.area)     parts.push('Cuisine ' + decodeHtmlEntities(activeMeal.area));
   if (activeMeal.prepTime) parts.push(activeMeal.prepTime + ' min prép.');
   if (activeMeal.cookTime) parts.push(activeMeal.cookTime + ' min cuisson');
   document.getElementById('ing-sub').textContent = parts.join('  ·  ');
 
-  await translateUnknownIngredients(activeMeal.ingredients);
-
-  const renderList = () => {
-    document.getElementById('ing-list').innerHTML = activeMeal.ingredients.map(ing => `
-      <li class="ing-item">
-        <div class="ing-dot"></div>
-        <span class="ing-name">${escHtml(ing.name)}</span>
-        <span class="ing-measure">${escHtml(ing.measureFr !== undefined ? ing.measureFr : translateMeasure(ing.measure || ''))}</span>
-      </li>`).join('');
-  };
-  renderList();
-
-  await translateAllMeasures(activeMeal.ingredients);
-  renderList();
+  document.getElementById('ing-list').innerHTML = activeMeal.ingredients.map(ing => `
+    <li class="ing-item">
+      <div class="ing-dot"></div>
+      <span class="ing-name">${escHtml(decodeHtmlEntities(ing.name || ''))}</span>
+      <span class="ing-measure">${escHtml(decodeHtmlEntities(ing.measureFr || ing.measure || ''))}</span>
+    </li>`).join('');
 
   showScreen('ingredients');
 }
@@ -845,9 +1404,11 @@ async function openMeal(mealId) {
 async function showRecipe() {
   if (!activeMeal) return;
 
-  document.getElementById('rec-img').src   = activeMeal.image;
-  document.getElementById('rec-img').alt   = activeMeal.nameFr || activeMeal.name;
-  document.getElementById('rec-title').textContent = activeMeal.nameFr || activeMeal.name;
+  const mealName = decodeHtmlEntities(activeMeal.nameFr || activeMeal.name || '');
+
+  document.getElementById('rec-img').src   = activeMeal.image || '';
+  document.getElementById('rec-img').alt   = mealName;
+  document.getElementById('rec-title').textContent = mealName;
   document.getElementById('rec-prep').textContent  = activeMeal.prepTime;
   document.getElementById('rec-cook').textContent  = activeMeal.cookTime;
   document.getElementById('rec-total').textContent = (activeMeal.prepTime || 0) + (activeMeal.cookTime || 0);
@@ -859,35 +1420,24 @@ async function showRecipe() {
 
   showScreen('recipe');
 
-  const stepsEl  = document.getElementById('rec-steps');
-  const rawSteps = parseSteps(activeMeal.analyzedInstructions);
+  const stepsEl = document.getElementById('rec-steps');
+  const steps   = activeMeal.stepsFr || parseSteps(activeMeal.analyzedInstructions);
 
-  if (!rawSteps.length) {
-    stepsEl.innerHTML = '<p style="color:var(--gray);font-style:italic;font-size:13.5px;">Instructions non disponibles pour ce plat.</p>';
-    return;
-  }
-
-  const renderSteps = (steps) => {
+  if (steps.length) {
     stepsEl.innerHTML = steps.map((s, i) => `
       <div class="step-item">
         <div class="step-num">${i + 1}</div>
-        <div class="step-text">${addSentenceBreaks(escHtml(s))}</div>
+        <div class="step-text">${addSentenceBreaks(escHtml(decodeHtmlEntities(s)))}</div>
       </div>`).join('');
-  };
-
-  if (activeMeal.stepsFr && activeMeal.stepsFr.length === rawSteps.length) {
-    renderSteps(activeMeal.stepsFr);
   } else {
-    renderSteps(rawSteps);
-    activeMeal.stepsFr = await translateSteps(rawSteps);
-    renderSteps(activeMeal.stepsFr);
+    stepsEl.innerHTML = '<p style="color:var(--gray);font-style:italic;font-size:13.5px;">Instructions non disponibles pour ce plat.</p>';
   }
 }
 
 /* ── Bouton Détails ─────────────────────────────────────────── */
 function openDetails() {
   if (!activeMeal) return;
-  const name  = activeMeal.nameFr || activeMeal.name;
+  const name  = decodeHtmlEntities(activeMeal.nameFr || activeMeal.name || '');
   const query = encodeURIComponent(name + ' recette');
   window.open(`https://www.google.com/search?q=${query}&lr=lang_fr`, '_blank');
   markPreparedSilent();
@@ -913,24 +1463,36 @@ async function markPrepared() {
   btn.disabled    = true;
   btn.textContent = '⏳ Enregistrement…';
 
+  // Détecter si le plat vient d'une recherche (pas dans dailyMeals)
+  const isFromSearch = !dailyMeals.some(m => m.id === activeMeal.id);
+
   try {
     await persistPrepared(currentUser.code, activeMeal.id);
 
-    const remaining  = dailyMeals.filter(m => m.id !== activeMeal.id);
-    const allExclude = (currentUser.preparedMeals || []).concat(dailyMeals.map(m => m.id));
-    const remplacement = await fetchUniqueMeals(1, allExclude);
-
-    dailyMeals = remaining.concat(remplacement);
-    await saveDailyMeals(currentUser.code, dailyMeals);
-
     btn.textContent = '✅ Bon appétit !';
     showToast('Plat enregistré comme préparé !');
+
+    if (isFromSearch) {
+      // Plat issu d'une recherche : pas de remplacement dans les repas du jour
+      setTimeout(() => {
+        renderMealCards(searchResults || dailyMeals);
+        showScreen('home');
+      }, 1400);
+      return;
+    }
+
+    // Plat issu des repas du jour : chercher un remplacement
+    const remaining  = dailyMeals.filter(m => m.id !== activeMeal.id);
+    const allExclude = [...(currentUser.preparedMeals || []), ...dailyMeals.map(m => m.id)];
+    const remplacement = await fetchUniqueMeals(1, allExclude);
+
+    dailyMeals = [...remaining, ...remplacement];
+    await saveDailyMeals(currentUser.code, dailyMeals);
 
     setTimeout(() => {
       renderMealCards(dailyMeals);
       showScreen('home');
     }, 1400);
-
   } catch (e) {
     console.error(e);
     btn.disabled    = false;
