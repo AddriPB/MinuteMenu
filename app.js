@@ -1494,9 +1494,10 @@ async function markPrepared() {
     showToast('Plat enregistré comme préparé !');
 
     if (isFromSearch) {
-      // Plat issu d'une recherche : pas de remplacement dans les repas du jour
+      // Plat issu d'une recherche : reset la recherche et retour aux repas du jour
       setTimeout(() => {
-        renderMealCards(searchResults || dailyMeals);
+        resetSearch();
+        renderMealCards(dailyMeals);
         showScreen('home');
       }, 1400);
       return;
