@@ -1205,13 +1205,28 @@ async function searchMeals(query) {
     const nonMar = matching.filter(u => !u.includes('marmiton.org')).slice(0, 6);
     const marUrls = matching.filter(u => u.includes('marmiton.org'));
 
+    // Vérifie que le nom de la recette correspond bien à la recherche
+    // (protège contre les entrées de cache corrompues ou redirections proxy)
+    const matchesQuery = (meal) => {
+      const name = normalizeQuery(meal.nameFr || meal.name || '');
+      return words.some(w => name.includes(w));
+    };
+
     const settled = await Promise.allSettled(nonMar.map(u => fetchRecipeFromUrl(u)));
     for (const r of settled) {
       if (results.length >= 3) break;
-      if (r.status === 'fulfilled' && r.value && !usedIds.has(r.value.id)) {
-        usedIds.add(r.value.id);
-        results.push(r.value);
+      if (r.status !== 'fulfilled' || !r.value) continue;
+      const meal = r.value;
+      if (usedIds.has(meal.id)) continue;
+      if (!matchesQuery(meal)) {
+        console.warn('Résultat hors-sujet ignoré (cache corrompu) :', meal.name);
+        // Purger l'entrée corrompue du cache pour éviter la récidive
+        try { localStorage.removeItem(LS_RECIPE_PREFIX + meal.id); } catch (_) {}
+        db.collection('recipeCache').doc(meal.id).delete().catch(() => {});
+        continue;
       }
+      usedIds.add(meal.id);
+      results.push(meal);
     }
 
     // Marmiton en fallback séquentiel (avec délai anti-blocage)
@@ -1222,6 +1237,12 @@ async function searchMeals(query) {
       if (results.length > 0) await sleep(700, 1500);
       try {
         const meal = await fetchRecipeFromUrl(url);
+        if (!matchesQuery(meal)) {
+          console.warn('Résultat hors-sujet ignoré (cache corrompu) :', meal.name);
+          try { localStorage.removeItem(LS_RECIPE_PREFIX + meal.id); } catch (_) {}
+          db.collection('recipeCache').doc(meal.id).delete().catch(() => {});
+          continue;
+        }
         usedIds.add(meal.id);
         results.push(meal);
       } catch (e) {
