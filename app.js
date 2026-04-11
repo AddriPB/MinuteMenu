@@ -704,6 +704,11 @@ function processCuisineAZRecipe(schema, url) {
   if (Array.isArray(rawCat))            category = rawCat[0] || '';
   else if (typeof rawCat === 'string')  category = rawCat;
 
+  // Exclure les recettes hors cuisine (cocktails, boissons, etc.)
+  const categoryLower = category.toLowerCase();
+  const NON_FOOD_KEYWORDS = ['cocktail', 'boisson', 'drink', 'smoothie', 'jus ', 'sirop', 'alcool', 'bière', 'vin ', 'liqueur', 'spiritueux'];
+  if (NON_FOOD_KEYWORDS.some(kw => categoryLower.includes(kw))) return null;
+
   return {
     id,
     name,
@@ -988,7 +993,10 @@ function showScreen(name, pushHistory = true) {
 
 window.addEventListener('popstate', (e) => {
   const screen = e.state?.screen ?? 'login';
-  if (screen === 'home') resetSearch();
+  if (screen === 'home') {
+    resetSearch();
+    renderMealCards(dailyMeals);
+  }
   showScreen(screen, false);
 });
 
@@ -1404,12 +1412,17 @@ async function openMeal(mealId) {
   document.getElementById('ing-img').alt   = mealName;
   document.getElementById('ing-title').textContent = mealName;
 
-  const parts = [];
-  if (activeMeal.category) parts.push(decodeHtmlEntities(activeMeal.category));
-  if (activeMeal.area)     parts.push('Cuisine ' + decodeHtmlEntities(activeMeal.area));
-  if (activeMeal.prepTime) parts.push(activeMeal.prepTime + ' min prép.');
-  if (activeMeal.cookTime) parts.push(activeMeal.cookTime + ' min cuisson');
-  document.getElementById('ing-sub').textContent = parts.join('  ·  ');
+  const catParts = [];
+  if (activeMeal.category) catParts.push(escHtml(decodeHtmlEntities(activeMeal.category)));
+  if (activeMeal.area)     catParts.push(escHtml('Cuisine ' + decodeHtmlEntities(activeMeal.area)));
+  const timeParts = [];
+  if (activeMeal.prepTime) timeParts.push(activeMeal.prepTime + ' min prép.');
+  if (activeMeal.cookTime) timeParts.push(activeMeal.cookTime + ' min cuisson');
+  let subHtml = '';
+  if (catParts.length)  subHtml += `<span class="sub-category">${catParts.join(' · ')}</span>`;
+  if (catParts.length && timeParts.length) subHtml += `<span class="sub-sep"> · </span>`;
+  if (timeParts.length) subHtml += `<span class="sub-meta">${escHtml(timeParts.join(' · '))}</span>`;
+  document.getElementById('ing-sub').innerHTML = subHtml;
 
   document.getElementById('ing-list').innerHTML = activeMeal.ingredients.map(ing => `
     <li class="ing-item">
@@ -1430,6 +1443,15 @@ async function showRecipe() {
   document.getElementById('rec-img').src   = activeMeal.image || '';
   document.getElementById('rec-img').alt   = mealName;
   document.getElementById('rec-title').textContent = mealName;
+
+  const recCatParts = [];
+  if (activeMeal.category) recCatParts.push(escHtml(decodeHtmlEntities(activeMeal.category)));
+  if (activeMeal.area)     recCatParts.push(escHtml('Cuisine ' + decodeHtmlEntities(activeMeal.area)));
+  const recSub = document.getElementById('rec-sub');
+  if (recSub) recSub.innerHTML = recCatParts.length
+    ? `<span class="sub-category">${recCatParts.join(' · ')}</span>`
+    : '';
+
   document.getElementById('rec-prep').textContent  = activeMeal.prepTime;
   document.getElementById('rec-cook').textContent  = activeMeal.cookTime;
   document.getElementById('rec-total').textContent = (activeMeal.prepTime || 0) + (activeMeal.cookTime || 0);
