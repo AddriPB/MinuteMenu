@@ -318,7 +318,6 @@ async function fetchMarmitonUrlsFromSitemap() {
   const indexUrl = `${MARMITON_BASE}/wsitemap_recipes_index.xml`;
   const indexXml = await fetchPage(indexUrl);
 
-  // Extraire les URLs des child sitemaps
   const childUrls = [...indexXml.matchAll(/<loc>(https:\/\/www\.marmiton\.org\/wsitemap_recipes[^<]+)<\/loc>/gi)]
     .map(m => m[1])
     .slice(0, 3); // 3 premiers suffit pour ~3000 URLs
@@ -328,6 +327,28 @@ async function fetchMarmitonUrlsFromSitemap() {
     await sleep(1000 + Math.random() * 1000);
     const xml = await fetchPage(childUrl);
     const urls = [...xml.matchAll(/<loc>(https:\/\/www\.marmiton\.org\/recettes\/recette_[^<]+\.aspx)<\/loc>/gi)]
+      .map(m => m[1]);
+    recipeUrls.push(...urls);
+    console.log(`  Sitemap ${childUrl.split('/').pop()} : ${urls.length} URLs`);
+  }
+
+  return recipeUrls;
+}
+
+async function fetchCuisineAZUrlsFromSitemap() {
+  const indexUrl = `${CAZ_BASE}/xml/sitemap.xml`;
+  const indexXml = await fetchPage(indexUrl);
+
+  // Garder uniquement les sitemaps recettes (pas news, vidéos, catégories…)
+  const childUrls = [...indexXml.matchAll(/<loc>(https:\/\/www\.cuisineaz\.com\/xml\/sitemap-cuisineaz-recette-[^<]+)<\/loc>/gi)]
+    .map(m => m[1])
+    .slice(0, 5); // 5 premiers (~5000 URLs) suffisent pour diversifier le pool
+
+  const recipeUrls = [];
+  for (const childUrl of childUrls) {
+    await sleep(500 + Math.random() * 500);
+    const xml = await fetchPage(childUrl);
+    const urls = [...xml.matchAll(/<loc>(https:\/\/www\.cuisineaz\.com\/recettes\/[^<]+\.aspx)<\/loc>/gi)]
       .map(m => m[1]);
     recipeUrls.push(...urls);
     console.log(`  Sitemap ${childUrl.split('/').pop()} : ${urls.length} URLs`);
@@ -376,37 +397,49 @@ async function main() {
   const cached = await getAlreadyCachedIds();
   console.log(`Cache existant : ${cached.size} recettes\n`);
 
-  // 2. Construire le pool d'URLs
-  const urlPool = new Set(ALL_SEED_URLS);
+  // 2. Pools par source (seeds de base)
+  const cazPool      = new Set(CAZ_SEED_URLS);
+  const marmitonPool = new Set(MARMITON_SEED_URLS);
 
-  // 3. Enrichir via sitemap Marmiton
+  // 3. Enrichir CuisineAZ via sitemap
   try {
-    console.log('Lecture du sitemap Marmiton...');
-    const sitemapUrls = await fetchMarmitonUrlsFromSitemap();
-    sitemapUrls.forEach(u => urlPool.add(u));
-    console.log(`Sitemap : +${sitemapUrls.length} URLs (total pool : ${urlPool.size})\n`);
+    console.log('Lecture du sitemap CuisineAZ...');
+    const cazSitemapUrls = await fetchCuisineAZUrlsFromSitemap();
+    cazSitemapUrls.forEach(u => cazPool.add(u));
+    console.log(`Sitemap CuisineAZ : +${cazSitemapUrls.length} URLs (pool CAZ : ${cazPool.size})\n`);
   } catch (e) {
-    console.warn(`⚠️  Sitemap Marmiton inaccessible : ${e.message}`);
-    console.warn('   → On continue avec les seeds uniquement\n');
+    console.warn(`⚠️  Sitemap CuisineAZ inaccessible : ${e.message}`);
+    console.warn('   → On continue avec les seeds CAZ uniquement\n');
   }
 
-  // 4. Séparer les sources et filtrer les déjà cachés
-  const filterUncached = (urls) => shuffle(urls.filter(url => {
+  // 4. Enrichir Marmiton via sitemap (bloqué en pratique par Cloudflare, fallback silencieux)
+  try {
+    console.log('Lecture du sitemap Marmiton...');
+    const marmitonSitemapUrls = await fetchMarmitonUrlsFromSitemap();
+    marmitonSitemapUrls.forEach(u => marmitonPool.add(u));
+    console.log(`Sitemap Marmiton : +${marmitonSitemapUrls.length} URLs (pool Marmiton : ${marmitonPool.size})\n`);
+  } catch (e) {
+    console.warn(`⚠️  Sitemap Marmiton inaccessible : ${e.message}`);
+    console.warn('   → On continue avec les seeds Marmiton uniquement\n');
+  }
+
+  // 5. Filtrer les déjà cachés par source
+  const filterUncached = (urls) => shuffle([...new Set(urls)].filter(url => {
     const id = extractIdFromUrl(url);
     return id && !cached.has(id);
   }));
 
   const g750Uncached     = filterUncached(G750_SEED_URLS);
-  const cazUncached      = filterUncached(CAZ_SEED_URLS);
-  const marmitonUncached = filterUncached([...urlPool].filter(u => u.includes('marmiton.org')));
+  const cazUncached      = filterUncached([...cazPool]);
+  const marmitonUncached = filterUncached([...marmitonPool]);
 
   console.log(`URLs disponibles — 750g : ${g750Uncached.length} | CuisineAZ : ${cazUncached.length} | Marmiton : ${marmitonUncached.length}`);
   console.log(`Quota : ${BATCH_SIZE}\n`);
 
-  // 5. 750g + CuisineAZ en priorité (pas de Cloudflare), Marmiton en fallback
+  // 6. 750g + CuisineAZ en priorité (pas de Cloudflare), Marmiton en fallback
   const batch = [...g750Uncached, ...cazUncached, ...marmitonUncached].slice(0, BATCH_SIZE);
 
-  // 6. Fetch + écriture Firestore
+  // 7. Fetch + écriture Firestore
   let success = 0, skipped = 0, failed = 0;
 
   for (const url of batch) {
