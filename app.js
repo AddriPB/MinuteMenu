@@ -397,6 +397,85 @@ const MARMITON_SEED_URLS = [
   /* ── Végétarien ── */
   `${MARMITON_BASE}/recettes/recette_curry-de-lentilles_22134.aspx`,
   `${MARMITON_BASE}/recettes/recette_quiche-aux-poireaux_14321.aspx`,
+
+  /* ── Porc ── */
+  `${MARMITON_BASE}/recettes/recette_filet-mignon-de-porc-au-four_23451.aspx`,
+  `${MARMITON_BASE}/recettes/recette_filet-mignon-de-porc-a-la-moutarde_25832.aspx`,
+  `${MARMITON_BASE}/recettes/recette_roti-de-porc-au-four_26543.aspx`,
+  `${MARMITON_BASE}/recettes/recette_cotes-de-porc-a-la-normande_24178.aspx`,
+  `${MARMITON_BASE}/recettes/recette_cotes-de-porc-a-la-moutarde_19345.aspx`,
+  `${MARMITON_BASE}/recettes/recette_travers-de-porc-au-miel_28431.aspx`,
+  `${MARMITON_BASE}/recettes/recette_saute-de-porc-au-curry_27654.aspx`,
+  `${MARMITON_BASE}/recettes/recette_porc-au-caramel_31245.aspx`,
+
+  /* ── Agneau ── */
+  `${MARMITON_BASE}/recettes/recette_gigot-d-agneau-roti_14562.aspx`,
+  `${MARMITON_BASE}/recettes/recette_carre-d-agneau-aux-herbes_23187.aspx`,
+  `${MARMITON_BASE}/recettes/recette_agneau-aux-legumes_19045.aspx`,
+  `${MARMITON_BASE}/recettes/recette_epaule-d-agneau-confite_27891.aspx`,
+
+  /* ── Gratins ── */
+  `${MARMITON_BASE}/recettes/recette_gratin-de-pommes-de-terre_11923.aspx`,
+  `${MARMITON_BASE}/recettes/recette_gratin-de-courgettes_16345.aspx`,
+  `${MARMITON_BASE}/recettes/recette_gratin-de-brocolis-au-gruyere_18762.aspx`,
+  `${MARMITON_BASE}/recettes/recette_gratin-de-chou-fleur_15089.aspx`,
+  `${MARMITON_BASE}/recettes/recette_gratin-de-poireaux-au-jambon_20134.aspx`,
+  `${MARMITON_BASE}/recettes/recette_gratin-de-pates-bolognaise_22567.aspx`,
+
+  /* ── Tartes salées / Quiches ── */
+  `${MARMITON_BASE}/recettes/recette_quiche-au-thon-et-aux-poireaux_17823.aspx`,
+  `${MARMITON_BASE}/recettes/recette_quiche-aux-champignons_16092.aspx`,
+  `${MARMITON_BASE}/recettes/recette_tarte-aux-oignons-et-lardons_20456.aspx`,
+  `${MARMITON_BASE}/recettes/recette_tarte-a-la-tomate-et-mozzarella_24389.aspx`,
+  `${MARMITON_BASE}/recettes/recette_flamiche-aux-poireaux_18234.aspx`,
+
+  /* ── Poisson ── */
+  `${MARMITON_BASE}/recettes/recette_cabillaud-au-four_21034.aspx`,
+  `${MARMITON_BASE}/recettes/recette_cabillaud-a-la-provencale_23765.aspx`,
+  `${MARMITON_BASE}/recettes/recette_papillote-de-saumon-aux-legumes_19832.aspx`,
+  `${MARMITON_BASE}/recettes/recette_dos-de-cabillaud-en-croute-de-parmesan_26541.aspx`,
+  `${MARMITON_BASE}/recettes/recette_gratin-de-poisson_17654.aspx`,
+  `${MARMITON_BASE}/recettes/recette_brandade-de-morue_15432.aspx`,
+
+  /* ── Pâtes supplémentaires ── */
+  `${MARMITON_BASE}/recettes/recette_spaghetti-bolognaise_14892.aspx`,
+  `${MARMITON_BASE}/recettes/recette_penne-all-arrabiata_23156.aspx`,
+  `${MARMITON_BASE}/recettes/recette_tagliatelles-au-saumon-fume_20678.aspx`,
+  `${MARMITON_BASE}/recettes/recette_gratin-de-macaronis_16234.aspx`,
+  `${MARMITON_BASE}/recettes/recette_spaghetti-aux-fruits-de-mer_24512.aspx`,
+
+  /* ── Riz / Céréales ── */
+  `${MARMITON_BASE}/recettes/recette_riz-cantonnais_18943.aspx`,
+  `${MARMITON_BASE}/recettes/recette_riz-pilaf-au-poulet_22341.aspx`,
+  `${MARMITON_BASE}/recettes/recette_risotto-aux-asperges_25678.aspx`,
+  `${MARMITON_BASE}/recettes/recette_risotto-au-poulet-et-champignons_27123.aspx`,
+
+  /* ── Plats du monde ── */
+  `${MARMITON_BASE}/recettes/recette_boeuf-bourguignon-a-l-ancienne_21076.aspx`,
+  `${MARMITON_BASE}/recettes/recette_moussaka_14765.aspx`,
+  `${MARMITON_BASE}/recettes/recette_moussaka-grecque_23098.aspx`,
+  `${MARMITON_BASE}/recettes/recette_tajine-de-boeuf-aux-pruneaux_19234.aspx`,
+  `${MARMITON_BASE}/recettes/recette_poulet-tikka-masala_28765.aspx`,
+  `${MARMITON_BASE}/recettes/recette_wok-de-boeuf-aux-legumes_26432.aspx`,
+  `${MARMITON_BASE}/recettes/recette_bo-bun_29871.aspx`,
+
+  /* ── Canard ── */
+  `${MARMITON_BASE}/recettes/recette_confit-de-canard_15678.aspx`,
+  `${MARMITON_BASE}/recettes/recette_magret-de-canard-sauce-orange_20543.aspx`,
+
+  /* ── Végétarien supplémentaire ── */
+  `${MARMITON_BASE}/recettes/recette_curry-de-pois-chiches_24567.aspx`,
+  `${MARMITON_BASE}/recettes/recette_tian-de-legumes_21345.aspx`,
+  `${MARMITON_BASE}/recettes/recette_lentilles-a-la-saucisse_17890.aspx`,
+  `${MARMITON_BASE}/recettes/recette_shakshuka_31234.aspx`,
+  `${MARMITON_BASE}/recettes/recette_gratin-de-quinoa-aux-legumes_29432.aspx`,
+
+  /* ── Plats rapides / express ── */
+  `${MARMITON_BASE}/recettes/recette_steak-hache-sauce-au-poivre_18234.aspx`,
+  `${MARMITON_BASE}/recettes/recette_omelette-aux-champignons_14567.aspx`,
+  `${MARMITON_BASE}/recettes/recette_poulet-au-citron_22876.aspx`,
+  `${MARMITON_BASE}/recettes/recette_crevettes-sautees-a-l-ail_25431.aspx`,
+  `${MARMITON_BASE}/recettes/recette_escalope-milanaise_16789.aspx`,
 ];
 
 /* Toutes les seeds combinées : 750g en priorité, puis CAZ, puis Marmiton */
@@ -833,6 +912,18 @@ function setLocalRecipe(id, meal) {
   } catch (_) {} // quota dépassé → on ignore silencieusement
 }
 
+/* ── Vérifie si une URL est déjà dans le cache L1 ─────────────── */
+function hasLocalCache(url) {
+  const id = extractIdFromUrl(url);
+  if (!id) return false;
+  try {
+    const raw = localStorage.getItem(LS_RECIPE_PREFIX + id);
+    if (!raw) return false;
+    const { ts } = JSON.parse(raw);
+    return (Date.now() - ts) <= LS_RECIPE_TTL_MS;
+  } catch (_) { return false; }
+}
+
 /* ── L2 : Firestore ──────────────────────────────────────────── */
 async function getFirestoreRecipe(id) {
   try {
@@ -905,51 +996,109 @@ function shuffle(arr) {
 
 /* ── Récupérer N recettes uniques ────────────────────────────── */
 /*
-  excludeIds : IDs à ignorer en priorité (plats déjà préparés).
-  Si le pool est épuisé (pas assez de plats non préparés), on retente
-  sans exclusions pour ne jamais bloquer l'utilisateur.
+  excludeIds : IDs à ignorer (plats préparés récents).
+  Stratégie :
+   1. URLs déjà en cache L1 en priorité (instantané, 0 réseau)
+   2. Non-Marmiton fetchés en parallèle (Promise.allSettled)
+   3. Marmiton en séquentiel avec délai uniquement si fetch L3
+   4. Fallback si pool épuisé : accepte les plats préparés anciens
 */
 async function fetchUniqueMeals(count, excludeIds = []) {
   const pool       = await discoverRecipeUrls();
   const excludeSet = new Set(excludeIds.map(String));
-  const result     = [];
   const usedIds    = new Set();
+  const result     = [];
 
-  const tryUrls = async (urls) => {
-    for (const url of urls) {
+  const eligible = pool.filter(url => {
+    const id = extractIdFromUrl(url);
+    return id && !excludeSet.has(id);
+  });
+
+  // Shuffle puis trier : URLs déjà en cache L1 en priorité
+  const shuffled = shuffle(eligible);
+  const sorted   = [
+    ...shuffled.filter(u => hasLocalCache(u)),
+    ...shuffled.filter(u => !hasLocalCache(u))
+  ];
+
+  // Séparer Marmiton (rate-limit) des autres sources
+  const nonMar  = sorted.filter(u => !u.includes('marmiton.org'));
+  const marUrls = sorted.filter(u => u.includes('marmiton.org'));
+
+  // 750g + CuisineAZ : fetch en parallèle (candidats × 3 pour absorber les échecs)
+  const batchSize   = Math.min(count * 3, nonMar.length);
+  const nonMarBatch = nonMar.slice(0, batchSize);
+  const settled     = await Promise.allSettled(nonMarBatch.map(u => fetchRecipeFromUrl(u)));
+  for (const r of settled) {
+    if (result.length >= count) break;
+    if (r.status !== 'fulfilled' || !r.value) continue;
+    const meal = r.value;
+    if (!usedIds.has(meal.id)) { usedIds.add(meal.id); result.push(meal); }
+  }
+
+  // Marmiton en séquentiel si besoin de compléter
+  for (const url of marUrls) {
+    if (result.length >= count) break;
+    const id = extractIdFromUrl(url);
+    if (!id || usedIds.has(id)) continue;
+    // Délai uniquement pour les fetches L3 (pas de cache local)
+    if (!hasLocalCache(url) && result.length > 0) await sleep(700, 1500);
+    try {
+      const meal = await fetchRecipeFromUrl(url);
+      usedIds.add(meal.id); result.push(meal);
+    } catch (e) { console.warn('Recette ignorée :', url, '—', e.message); }
+  }
+
+  // Fallback : pool épuisé → on accepte les plats préparés anciens
+  if (result.length < count && excludeIds.length > 0) {
+    console.info('Pool épuisé — fallback sur les plats préparés');
+    const fallback = shuffle(pool.filter(url => {
+      const id = extractIdFromUrl(url);
+      return id && !usedIds.has(id);
+    }));
+    for (const url of fallback) {
       if (result.length >= count) break;
       const id = extractIdFromUrl(url);
       if (!id || usedIds.has(id)) continue;
-      // Délai aléatoire entre les fetches Marmiton pour éviter le rate-limit
-      if (url.includes('marmiton.org') && result.length > 0) {
-        await sleep(700, 1500);
-      }
       try {
         const meal = await fetchRecipeFromUrl(url);
-        usedIds.add(meal.id);
-        result.push(meal);
-      } catch (e) {
-        console.warn('Recette ignorée :', url, '—', e.message);
-      }
+        usedIds.add(meal.id); result.push(meal);
+      } catch (_) {}
     }
-  };
-
-  // Première passe : sans les plats préparés
-  await tryUrls(shuffle(pool.filter(url => {
-    const id = extractIdFromUrl(url);
-    return id && !excludeSet.has(id);
-  })));
-
-  // Fallback : pool épuisé → on accepte les plats déjà préparés
-  if (result.length < count && excludeIds.length > 0) {
-    console.info('Pool épuisé — fallback sur les plats préparés');
-    await tryUrls(shuffle(pool.filter(url => {
-      const id = extractIdFromUrl(url);
-      return id && !usedIds.has(id);
-    })));
   }
 
   return result;
+}
+
+/* ── Pré-chauffage du cache en arrière-plan ──────────────────── */
+/*
+  Après l'affichage des repas du jour, télécharge silencieusement
+  d'autres recettes du pool pour remplir le cache localStorage.
+  Fire & forget — n'impacte pas l'UI.
+*/
+const WARM_BATCH = 12;
+
+async function warmCache(excludeIds = []) {
+  if (warmCache._running) return;
+  warmCache._running = true;
+  try {
+    const pool       = await discoverRecipeUrls();
+    const excludeSet = new Set(excludeIds.map(String));
+    const uncached   = shuffle(pool.filter(url => {
+      const id = extractIdFromUrl(url);
+      return id && !excludeSet.has(id) && !hasLocalCache(url);
+    })).slice(0, WARM_BATCH);
+
+    for (const url of uncached) {
+      if (!warmCache._running) break;
+      try {
+        if (url.includes('marmiton.org')) await sleep(2000, 4000);
+        await fetchRecipeFromUrl(url);
+      } catch (_) {}
+    }
+  } finally {
+    warmCache._running = false;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1044,11 +1193,11 @@ async function getOrCreateUser(code) {
   const ref = db.collection('users').doc(code);
   const doc = await ref.get();
   if (!doc.exists) {
-    const data = { code, createdAt: firebase.firestore.FieldValue.serverTimestamp(), preparedMeals: [] };
+    const data = { code, createdAt: firebase.firestore.FieldValue.serverTimestamp(), preparedMeals: [], preparedDates: {} };
     await ref.set(data);
-    return { code, preparedMeals: [] };
+    return { code, preparedMeals: [], preparedDates: {} };
   }
-  return { code, preparedMeals: [], ...doc.data() };
+  return { code, preparedMeals: [], preparedDates: {}, ...doc.data() };
 }
 
 const MEALS_V = 2; // Incrémenter pour invalider le cache Firestore journalier
@@ -1060,7 +1209,7 @@ async function loadDailyMeals(userCode) {
     if (!meals || !meals[0]) return null;
     const firstId = meals[0].id || '';
     // Invalide les anciens caches Spoonacular ou sans préfixe source
-    if (!meals[0].url || (!firstId.startsWith('750g_') && !firstId.startsWith('caz_'))) return null;
+    if (!meals[0].url || (!firstId.startsWith('750g_') && !firstId.startsWith('caz_') && !firstId.startsWith('marmiton_'))) return null;
     return meals;
   }
   return null;
@@ -1072,12 +1221,31 @@ async function saveDailyMeals(userCode, meals) {
 
 async function persistPrepared(userCode, mealId) {
   await db.collection('users').doc(userCode).update({
-    preparedMeals: firebase.firestore.FieldValue.arrayUnion(mealId)
+    preparedMeals: firebase.firestore.FieldValue.arrayUnion(mealId),
+    [`preparedDates.${mealId}`]: firebase.firestore.FieldValue.serverTimestamp()
   });
   if (!currentUser.preparedMeals) currentUser.preparedMeals = [];
-  if (!currentUser.preparedMeals.includes(mealId)) {
-    currentUser.preparedMeals.push(mealId);
-  }
+  if (!currentUser.preparedMeals.includes(mealId)) currentUser.preparedMeals.push(mealId);
+  if (!currentUser.preparedDates) currentUser.preparedDates = {};
+  currentUser.preparedDates[mealId] = Date.now();
+}
+
+/* ── IDs préparés actifs (règle 15 jours) ────────────────────── */
+/*
+  Ne retourne que les IDs préparés il y a moins de 15 jours.
+  Sans date connue (ancienne entrée) → exclus par sécurité.
+*/
+const PREPARED_TTL_MS = 15 * 86400000;
+
+function getActivePreparedIds() {
+  const now   = Date.now();
+  const dates = currentUser.preparedDates || {};
+  return (currentUser.preparedMeals || []).filter(id => {
+    const raw = dates[id];
+    if (!raw) return true; // pas de date → conservatif, on exclut
+    const ts = raw?.toMillis?.() || raw;
+    return (now - ts) < PREPARED_TTL_MS;
+  });
 }
 
 /* ── Connexion ──────────────────────────────────────────────── */
@@ -1184,7 +1352,7 @@ async function searchMeals(query) {
   try {
     // Mots-clés à retrouver dans le slug du nom du plat uniquement
     const words = q.split(' ').filter(Boolean);
-    const preparedSet = new Set((currentUser.preparedMeals || []).map(String));
+    const preparedSet = new Set(getActivePreparedIds().map(String));
 
     const matching = shuffle(ALL_SEED_URLS.filter(url => {
       // Exclure les plats déjà préparés
@@ -1292,17 +1460,17 @@ async function initHome() {
   showSkeletons();
 
   try {
-    const prepared = new Set(currentUser.preparedMeals || []);
+    const activePrepared = getActivePreparedIds();
+    const prepared       = new Set(activePrepared);
     let meals = await loadDailyMeals(currentUser.code);
 
     if (meals) {
-      // Filtrer les plats déjà préparés depuis la dernière sauvegarde du cache
+      // Filtrer les plats préparés récemment (règle 15 jours)
       const unprepared = meals.filter(m => !prepared.has(m.id));
       const missing    = 3 - unprepared.length;
 
       if (missing > 0) {
-        // Récupérer des remplaçants pour les plats préparés
-        const alreadySeen = new Set([...prepared, ...meals.map(m => m.id)]);
+        const alreadySeen = new Set([...activePrepared, ...meals.map(m => m.id)]);
         const replacements = await fetchUniqueMeals(missing, [...alreadySeen]);
         meals = [...unprepared, ...replacements];
         await saveDailyMeals(currentUser.code, meals);
@@ -1310,14 +1478,15 @@ async function initHome() {
         meals = unprepared.slice(0, 3);
       }
     } else {
-      // Aucun cache pour aujourd'hui
-      meals = await fetchUniqueMeals(3, [...prepared]);
+      meals = await fetchUniqueMeals(3, activePrepared);
       if (meals.length === 0) throw new Error('Aucune recette récupérée');
       await saveDailyMeals(currentUser.code, meals);
     }
 
     dailyMeals = meals;
     renderMealCards(meals);
+    // Pré-chauffage cache en arrière-plan (non bloquant)
+    setTimeout(() => warmCache([...activePrepared, ...meals.map(m => m.id)]), 3000);
   } catch (e) {
     console.error(e);
     document.getElementById('meals-grid').innerHTML =
@@ -1341,11 +1510,13 @@ async function refreshMeals() {
 
   showSkeletons();
   try {
-    const meals = await fetchUniqueMeals(3, currentUser.preparedMeals || []);
+    const activePrepared = getActivePreparedIds();
+    const meals = await fetchUniqueMeals(3, activePrepared);
     if (meals.length === 0) throw new Error('Aucune recette récupérée');
     dailyMeals = meals;
     await saveDailyMeals(currentUser.code, meals);
     renderMealCards(meals);
+    setTimeout(() => warmCache([...activePrepared, ...meals.map(m => m.id)]), 3000);
   } catch (e) {
     console.error(e);
     showToast("Erreur lors de l'actualisation.");
@@ -1527,7 +1698,7 @@ async function markPrepared() {
 
     // Plat issu des repas du jour : chercher un remplacement
     const remaining  = dailyMeals.filter(m => m.id !== activeMeal.id);
-    const allExclude = [...(currentUser.preparedMeals || []), ...dailyMeals.map(m => m.id)];
+    const allExclude = [...getActivePreparedIds(), ...dailyMeals.map(m => m.id)];
     const remplacement = await fetchUniqueMeals(1, allExclude);
 
     dailyMeals = [...remaining, ...remplacement];
