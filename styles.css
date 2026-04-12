@@ -600,6 +600,9 @@ body {
 }
 .btn-prepared:active:not(:disabled) { opacity: .88; }
 .btn-prepared:disabled { opacity: .58; cursor: not-allowed; }
+/* iOS Safari : position:fixed peut rester visible malgré display:none du parent */
+.screen:not(.active) .btn-prepared,
+.screen:not(.active) .btn-recipe { display: none; }
 
 #screen-recipe .page-body {
   padding-bottom: calc(96px + var(--safe-bot));
