@@ -20,7 +20,7 @@ const db = admin.firestore();
    CONSTANTES
 ══════════════════════════════════════════════════════════════ */
 
-const BATCH_SIZE    = 30;   // recettes fetchées par run
+const BATCH_SIZE    = 50;   // recettes fetchées par run
 const FS_TTL_DAYS   = 30;   // TTL cache Firestore (même que l'app)
 
 const MARMITON_BASE = 'https://www.marmiton.org';
@@ -140,58 +140,34 @@ const MARMITON_SEED_URLS = [
 ];
 
 const G750_SEED_URLS = [
-  `${G750_BASE}/quiche-lorraine-r1443.htm`,
-  `${G750_BASE}/gratin-dauphinois-r1374.htm`,
-  `${G750_BASE}/boeuf-bourguignon-r139.htm`,
+  /* ── Confirmés ✅ (JSON-LD présent côté GitHub Actions) ── */
   `${G750_BASE}/ratatouille-r53809.htm`,
-  `${G750_BASE}/pates-carbonara-r200273.htm`,
-  `${G750_BASE}/lasagnes-a-la-bolognaise-r1545.htm`,
   `${G750_BASE}/saumon-au-four-r204132.htm`,
   `${G750_BASE}/blanquette-de-veau-facile-r44182.htm`,
   `${G750_BASE}/poulet-basquaise-r87512.htm`,
-  `${G750_BASE}/poulet-au-curry-r2251.htm`,
   `${G750_BASE}/poulet-roti-r4313.htm`,
   `${G750_BASE}/hachis-parmentier-r83853.htm`,
-  `${G750_BASE}/tajine-de-poulet-au-citron-confit-r18045.htm`,
-  `${G750_BASE}/coq-au-vin-r1424.htm`,
-  `${G750_BASE}/tartiflette-r49998.htm`,
   `${G750_BASE}/cassoulet-de-castelnaudary-r151.htm`,
   `${G750_BASE}/moules-a-la-mariniere-r4248.htm`,
-  `${G750_BASE}/couscous-r6613.htm`,
   `${G750_BASE}/paella-r7892.htm`,
-  `${G750_BASE}/magret-de-canard-au-miel-r2733.htm`,
   `${G750_BASE}/risotto-classique-r204142.htm`,
   `${G750_BASE}/risotto-aux-champignons-r40709.htm`,
   `${G750_BASE}/chili-con-carne-r10937.htm`,
-  `${G750_BASE}/gigot-dagneau-roti-r204294.htm`,
-  `${G750_BASE}/osso-bucco-r1740.htm`,
   `${G750_BASE}/gratin-de-courgettes-r17989.htm`,
   `${G750_BASE}/soupe-a-l-oignon-gratinee-r1561.htm`,
   `${G750_BASE}/veloute-de-potimarron-r87654.htm`,
   `${G750_BASE}/pot-au-feu-r204226.htm`,
-  `${G750_BASE}/filet-mignon-de-porc-a-la-moutarde-r74670.htm`,
 ];
 
 const CAZ_SEED_URLS = [
+  /* ── Confirmés ✅ ── */
   `${CAZ_BASE}/recettes/lasagnes-a-la-bolognaise-facile-54832.aspx`,
   `${CAZ_BASE}/recettes/blanquette-de-veau-a-l-ancienne-1548.aspx`,
+  /* ── IDs plausibles à valider au prochain run ── */
   `${CAZ_BASE}/recettes/pot-au-feu-traditionnel-5620.aspx`,
   `${CAZ_BASE}/recettes/tartiflette-facile-et-rapide-6782.aspx`,
-  `${CAZ_BASE}/recettes/poulet-roti-simple-et-rapide-91.aspx`,
-  `${CAZ_BASE}/recettes/boeuf-bourguignon-1352.aspx`,
-  `${CAZ_BASE}/recettes/gratin-dauphinois-2341.aspx`,
-  `${CAZ_BASE}/recettes/quiche-lorraine-1127.aspx`,
-  `${CAZ_BASE}/recettes/coq-au-vin-2187.aspx`,
-  `${CAZ_BASE}/recettes/moules-marinieres-3218.aspx`,
-  `${CAZ_BASE}/recettes/cassoulet-2876.aspx`,
-  `${CAZ_BASE}/recettes/couscous-royal-3156.aspx`,
   `${CAZ_BASE}/recettes/poulet-au-curry-5431.aspx`,
-  `${CAZ_BASE}/recettes/poulet-basquaise-3456.aspx`,
-  `${CAZ_BASE}/recettes/saumon-au-four-aux-herbes-9876.aspx`,
-  `${CAZ_BASE}/recettes/carbonara-facile-8921.aspx`,
   `${CAZ_BASE}/recettes/risotto-aux-champignons-7234.aspx`,
-  `${CAZ_BASE}/recettes/soupe-a-l-oignon-gratinee-2345.aspx`,
-  `${CAZ_BASE}/recettes/curry-de-pois-chiches-34567.aspx`,
 ];
 
 const ALL_SEED_URLS = [...MARMITON_SEED_URLS, ...G750_SEED_URLS, ...CAZ_SEED_URLS];
