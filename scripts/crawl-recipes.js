@@ -414,20 +414,21 @@ async function main() {
     console.warn('   → On continue avec les seeds uniquement\n');
   }
 
-  // 4. Filtrer les déjà cachés
-  const uncached = shuffle(
-    [...urlPool].filter(url => {
-      const id = extractIdFromUrl(url);
-      return id && !cached.has(id);
-    })
-  );
+  // 4. Séparer les sources et filtrer les déjà cachés
+  const filterUncached = (urls) => shuffle(urls.filter(url => {
+    const id = extractIdFromUrl(url);
+    return id && !cached.has(id);
+  }));
 
-  console.log(`URLs à fetcher : ${uncached.length} disponibles — quota : ${BATCH_SIZE}\n`);
+  const g750Uncached     = filterUncached(G750_SEED_URLS);
+  const cazUncached      = filterUncached(CAZ_SEED_URLS);
+  const marmitonUncached = filterUncached([...urlPool].filter(u => u.includes('marmiton.org')));
+
+  console.log(`URLs disponibles — 750g : ${g750Uncached.length} | CuisineAZ : ${cazUncached.length} | Marmiton : ${marmitonUncached.length}`);
+  console.log(`Quota : ${BATCH_SIZE}\n`);
 
   // 5. 750g + CuisineAZ en priorité (pas de Cloudflare), Marmiton en fallback
-  const others   = uncached.filter(u => !u.includes('marmiton.org'));
-  const marmiton = uncached.filter(u => u.includes('marmiton.org'));
-  const batch    = [...marmiton, ...others].slice(0, BATCH_SIZE);
+  const batch = [...g750Uncached, ...cazUncached, ...marmitonUncached].slice(0, BATCH_SIZE);
 
   // 6. Fetch + écriture Firestore
   let success = 0, skipped = 0, failed = 0;
