@@ -1,0 +1,30 @@
+name: Crawl Recipes
+
+on:
+  schedule:
+    - cron: '0 5 * * *'   # Tous les jours à 5h UTC
+  workflow_dispatch:        # Déclenchement manuel pour les tests
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: Install dependencies
+        run: npm install --prefix scripts
+
+      - name: Run crawl
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/crawl-recipes.js

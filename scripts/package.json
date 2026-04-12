@@ -1,0 +1,10 @@
+{
+  "name": "minutemenu-crawl",
+  "version": "1.0.0",
+  "description": "Script de crawl quotidien des recettes pour MinuteMenu",
+  "type": "module",
+  "main": "crawl-recipes.js",
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}
