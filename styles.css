@@ -150,20 +150,26 @@ body {
   bottom: calc(28px + var(--safe-bot));
   left: 50%;
   transform: translateX(-50%) translateY(90px);
+  opacity: 0;
   background: var(--dark);
   color: #fff;
   padding: 11px 22px;
   border-radius: 30px;
   font-size: 14px;
   font-weight: 500;
-  transition: transform .3s ease;
+  transition: transform .3s ease, opacity .3s ease;
   z-index: 600;
   white-space: nowrap;
   box-shadow: 0 4px 20px rgba(0,0,0,.25);
   max-width: calc(100vw - 40px);
   text-align: center;
+  pointer-events: none;
 }
-#toast.show { transform: translateX(-50%) translateY(0); }
+#toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
 
 /* ══════════════════════════════════════════════════════════
    LOGIN SCREEN
