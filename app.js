@@ -1688,8 +1688,8 @@ async function markPrepared() {
 
     if (isFromSearch) {
       // Plat issu d'une recherche : reset la recherche et retour aux repas du jour
+      setTimeout(() => document.getElementById('toast').classList.remove('show'), 1100);
       setTimeout(() => {
-        document.getElementById('toast').classList.remove('show');
         resetSearch();
         renderMealCards(dailyMeals);
         showScreen('home');
@@ -1705,8 +1705,8 @@ async function markPrepared() {
     dailyMeals = [...remaining, ...remplacement];
     await saveDailyMeals(currentUser.code, dailyMeals);
 
+    setTimeout(() => document.getElementById('toast').classList.remove('show'), 1100);
     setTimeout(() => {
-      document.getElementById('toast').classList.remove('show');
       renderMealCards(dailyMeals);
       showScreen('home');
     }, 1400);
