@@ -490,7 +490,12 @@ body {
 .ing-measure { font-size: 12.5px; color: var(--gray); font-weight: 500; }
 
 .btn-recipe {
-  width: 100%;
+  position: fixed;
+  bottom: calc(20px + var(--safe-bot));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 448px;
   padding: 16px;
   background: linear-gradient(135deg, var(--green), var(--green-dark));
   color: #fff;
@@ -506,8 +511,15 @@ body {
   gap: 10px;
   letter-spacing: .3px;
   -webkit-tap-highlight-color: transparent;
+  z-index: 50;
+  box-shadow: 0 4px 24px rgba(45,106,79,.4);
+  transition: opacity .2s;
 }
 .btn-recipe:active { opacity: .88; }
+
+#screen-ingredients .page-body {
+  padding-bottom: calc(96px + var(--safe-bot));
+}
 
 /* ══════════════════════════════════════════════════════════
    RECIPE SCREEN
