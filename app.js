@@ -1166,8 +1166,16 @@ function setLoading(on) {
 function showToast(msg, ms = 3000) {
   const t = document.getElementById('toast');
   t.textContent = msg;
+  t.style.display = 'block';
+  void t.offsetHeight; // force reflow pour déclencher la transition
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), ms);
+  setTimeout(() => hideToast(), ms);
+}
+
+function hideToast() {
+  const t = document.getElementById('toast');
+  t.classList.remove('show');
+  setTimeout(() => { t.style.display = 'none'; }, 320);
 }
 
 function escHtml(s) {
@@ -1688,7 +1696,7 @@ async function markPrepared() {
 
     if (isFromSearch) {
       // Plat issu d'une recherche : reset la recherche et retour aux repas du jour
-      setTimeout(() => document.getElementById('toast').classList.remove('show'), 1100);
+      setTimeout(() => hideToast(), 1100);
       setTimeout(() => {
         resetSearch();
         renderMealCards(dailyMeals);
@@ -1705,7 +1713,7 @@ async function markPrepared() {
     dailyMeals = [...remaining, ...remplacement];
     await saveDailyMeals(currentUser.code, dailyMeals);
 
-    setTimeout(() => document.getElementById('toast').classList.remove('show'), 1100);
+    setTimeout(() => hideToast(), 1100);
     setTimeout(() => {
       renderMealCards(dailyMeals);
       showScreen('home');

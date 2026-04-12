@@ -146,6 +146,7 @@ body {
 
 /* ── Toast ──────────────────────────────────────────────── */
 #toast {
+  display: none;
   position: fixed;
   bottom: calc(28px + var(--safe-bot));
   left: 50%;
@@ -163,12 +164,10 @@ body {
   box-shadow: 0 4px 20px rgba(0,0,0,.25);
   max-width: calc(100vw - 40px);
   text-align: center;
-  pointer-events: none;
 }
 #toast.show {
   transform: translateX(-50%) translateY(0);
   opacity: 1;
-  pointer-events: auto;
 }
 
 /* ══════════════════════════════════════════════════════════
