@@ -290,8 +290,23 @@ function processRecipe(schema, url) {
   if (Array.isArray(rawCat))           category = rawCat[0] || '';
   else if (typeof rawCat === 'string') category = rawCat;
 
-  const NON_FOOD = ['cocktail', 'boisson', 'drink', 'smoothie', 'sirop', 'alcool', 'liqueur'];
-  if (NON_FOOD.some(kw => category.toLowerCase().includes(kw))) return null;
+  // Rejeter les non-plats-principaux sur la catégorie JSON-LD
+  const SKIP_CATEGORIES = [
+    // Boissons
+    'cocktail', 'boisson', 'drink', 'smoothie', 'sirop', 'alcool', 'liqueur', 'jus',
+    // Desserts / pâtisseries
+    'dessert', 'gâteau', 'gateau', 'pâtisserie', 'patisserie', 'confiserie',
+    'glace', 'sorbet', 'biscuit', 'cookie', 'chocolat chaud',
+    // Entrées / apéros
+    'entrée', 'entree', 'amuse-bouche', 'amuse bouche', 'apéritif', 'aperitif',
+    'verrines', 'verrine',
+    // Sauces / condiments (pas des plats)
+    'sauce', 'condiment', 'marinade', 'vinaigrette',
+    // Petit-déjeuner / brunch
+    'petit-déjeuner', 'petit déjeuner', 'brunch',
+  ];
+  const catLower = category.toLowerCase();
+  if (SKIP_CATEGORIES.some(kw => catLower.includes(kw))) return null;
 
   return {
     id,
@@ -335,6 +350,28 @@ async function fetchMarmitonUrlsFromSitemap() {
   return recipeUrls;
 }
 
+// Mots-clés dans le slug CuisineAZ indiquant clairement un non-plat-principal
+const CAZ_SKIP_SLUG = [
+  // Desserts
+  'gateau', 'cake', 'brownie', 'cookie', 'fondant-au-chocolat', 'tiramisu',
+  'charlotte-aux', 'clafoutis', 'creme-brulee', 'mille-feuille', 'madeleine',
+  'macaron', 'profiterole', 'meringue', 'sorbet', 'buche-', 'compote',
+  'confiture', 'cheesecake', 'pancake', 'gaufre', 'waffle', 'beignet',
+  'churro', 'pain-perdu', 'financier', 'canele', 'bavarois', 'panna-cotta',
+  'semifreddo', 'tarte-aux-pommes', 'tarte-au-citron', 'tarte-tatin',
+  'flan-', 'mousse-au-chocolat', 'mousse-aux', 'riz-au-lait',
+  // Boissons
+  'smoothie', 'cocktail', 'limonade', 'sirop-', 'jus-de', 'milkshake',
+  'mocktail', 'lemonade',
+  // Petit-déj / brunch
+  'pancake-', 'crepe-sucr', 'pain-brioché', 'brioche-',
+];
+
+function isCazMainDish(url) {
+  const slug = url.split('/recettes/')[1] || '';
+  return !CAZ_SKIP_SLUG.some(kw => slug.includes(kw));
+}
+
 async function fetchCuisineAZUrlsFromSitemap() {
   const indexUrl = `${CAZ_BASE}/xml/sitemap.xml`;
   const indexXml = await fetchPage(indexUrl);
@@ -342,16 +379,17 @@ async function fetchCuisineAZUrlsFromSitemap() {
   // Garder uniquement les sitemaps recettes (pas news, vidéos, catégories…)
   const childUrls = [...indexXml.matchAll(/<loc>(https:\/\/www\.cuisineaz\.com\/xml\/sitemap-cuisineaz-recette-[^<]+)<\/loc>/gi)]
     .map(m => m[1])
-    .slice(0, 5); // 5 premiers (~5000 URLs) suffisent pour diversifier le pool
+    .slice(0, 5); // 5 premiers (~5000 URLs)
 
   const recipeUrls = [];
   for (const childUrl of childUrls) {
     await sleep(500 + Math.random() * 500);
     const xml = await fetchPage(childUrl);
-    const urls = [...xml.matchAll(/<loc>(https:\/\/www\.cuisineaz\.com\/recettes\/[^<]+\.aspx)<\/loc>/gi)]
+    const allUrls = [...xml.matchAll(/<loc>(https:\/\/www\.cuisineaz\.com\/recettes\/[^<]+\.aspx)<\/loc>/gi)]
       .map(m => m[1]);
-    recipeUrls.push(...urls);
-    console.log(`  Sitemap ${childUrl.split('/').pop()} : ${urls.length} URLs`);
+    const filtered = allUrls.filter(isCazMainDish);
+    recipeUrls.push(...filtered);
+    console.log(`  Sitemap ${childUrl.split('/').pop()} : ${filtered.length}/${allUrls.length} URLs (plats principaux)`);
   }
 
   return recipeUrls;
