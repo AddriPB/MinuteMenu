@@ -424,9 +424,9 @@ async function main() {
 
   console.log(`URLs à fetcher : ${uncached.length} disponibles — quota : ${BATCH_SIZE}\n`);
 
-  // 5. Marmiton en priorité, puis les autres
-  const marmiton = uncached.filter(u => u.includes('marmiton.org'));
+  // 5. 750g + CuisineAZ en priorité (pas de Cloudflare), Marmiton en fallback
   const others   = uncached.filter(u => !u.includes('marmiton.org'));
+  const marmiton = uncached.filter(u => u.includes('marmiton.org'));
   const batch    = [...marmiton, ...others].slice(0, BATCH_SIZE);
 
   // 6. Fetch + écriture Firestore
